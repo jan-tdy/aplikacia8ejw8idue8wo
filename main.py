@@ -84,7 +84,7 @@ class ControlApp(QWidget):
         self.zasuvky_layout = QVBoxLayout()
 
         # Názvy zásuviek
-        nazvy_zasuviek = ["PC", "Svetlo", "TV", "Router"]
+        nazvy_zasuviek = ["none(1)", "AZ2000(2)", "C14(3)", "UNKNOWN(4)"]
         stavy_zasuviek = []
 
         for i in range(4):
@@ -106,7 +106,7 @@ class ControlApp(QWidget):
         layout.addLayout(self.zasuvky_layout)
 
         # OTA aktualizácia
-        self.btn_update = QPushButton("Aktualizovať")
+        self.btn_update = QPushButton("Aktualizovať z githubu")
         self.btn_update.clicked.connect(perform_update)
         layout.addWidget(self.btn_update)
 
