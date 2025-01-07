@@ -2,59 +2,60 @@ import sys
 import socket
 import subprocess
 import requests
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QListWidget, QLabel, QHBoxLayout
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QListWidget, QLabel, QHBoxLayout, QTextEdit
 
 # Wake-on-LAN Funkcia
-def send_wol(mac_address):
+def send_wol(mac_address, log_widget):
     mac_address = mac_address.replace(':', '').replace('-', '')
     if len(mac_address) != 12:
+        log_widget.append("Chyba: Neplatná MAC adresa.")
         return False
     try:
         data = b'\xff' * 6 + bytes.fromhex(mac_address) * 16
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         sock.sendto(data, ('<broadcast>', 9))
+        log_widget.append(f"Wake-on-LAN poslané na {mac_address}.")
         return True
     except Exception as e:
-        print(f"Error: {e}")
+        log_widget.append(f"Chyba pri posielaní Wake-on-LAN: {e}")
         return False
 
 # Funkcie pre sispmctl
-def zapni_zasuvku(cislo_zasuvky, stav_label):
+def zapni_zasuvku(cislo_zasuvky, stav_label, log_widget):
     """Zapne zadanú zásuvku a aktualizuje stav."""
     try:
         subprocess.check_call(["sispmctl", "-o", str(cislo_zasuvky)])
-        stav_label.set("ON")
-        print(f"Zásuvka {cislo_zasuvky} bola zapnutá.")
+        stav_label.setText("ON")
+        log_widget.append(f"Zásuvka {cislo_zasuvky} bola zapnutá.")
     except subprocess.CalledProcessError as e:
-        print(f"Chyba pri zapínaní zásuvky {cislo_zasuvky}: {e}")
+        log_widget.append(f"Chyba pri zapínaní zásuvky {cislo_zasuvky}: {e}")
 
-def vypni_zasuvku(cislo_zasuvky, stav_label):
+def vypni_zasuvku(cislo_zasuvky, stav_label, log_widget):
     """Vypne zadanú zásuvku a aktualizuje stav."""
     try:
         subprocess.check_call(["sispmctl", "-f", str(cislo_zasuvky)])
-        stav_label.set("OFF")
-        print(f"Zásuvka {cislo_zasuvky} bola vypnutá.")
+        stav_label.setText("OFF")
+        log_widget.append(f"Zásuvka {cislo_zasuvky} bola vypnutá.")
     except subprocess.CalledProcessError as e:
-        print(f"Chyba pri vypínaní zásuvky {cislo_zasuvky}: {e}")
+        log_widget.append(f"Chyba pri vypínaní zásuvky {cislo_zasuvky}: {e}")
 
 # OTA aktualizácia
-def perform_update():
+def perform_update(log_widget):
     """Stiahne a nainštaluje aktualizáciu."""
     update_url = 'https://github.com/jan-tdy/aplikacia8ejw8idue8wo/raw/main/main.py'  # URL priamo na súbor
-
     try:
         response = requests.get(update_url)
         if response.status_code == 200:
             with open('main.py', 'wb') as f:
                 f.write(response.content)
-            print("Aktualizácia stiahnutá a aplikovaná.")
+            log_widget.append("Aktualizácia stiahnutá a aplikovaná.")
             return True
         else:
-            print("Chyba pri stahovaní aktualizácie.")
+            log_widget.append("Chyba pri stahovaní aktualizácie.")
             return False
     except requests.RequestException as e:
-        print(f"Chyba pri stahovaní aktualizácie: {e}")
+        log_widget.append(f"Chyba pri stahovaní aktualizácie: {e}")
         return False
 
 # GUI aplikácia
@@ -93,10 +94,10 @@ class ControlApp(QWidget):
             stavy_zasuviek.append(stav_premenna)
 
             zapni_btn = QPushButton(f"Zapnúť {nazvy_zasuviek[i]}")
-            zapni_btn.clicked.connect(lambda i=i, stav=stav_premenna: zapni_zasuvku(i+1, stav))
+            zapni_btn.clicked.connect(lambda i=i, stav=stav_premenna: zapni_zasuvku(i+1, stav, self.log_widget))
 
             vypni_btn = QPushButton(f"Vypnúť {nazvy_zasuviek[i]}")
-            vypni_btn.clicked.connect(lambda i=i, stav=stav_premenna: vypni_zasuvku(i+1, stav))
+            vypni_btn.clicked.connect(lambda i=i, stav=stav_premenna: vypni_zasuvku(i+1, stav, self.log_widget))
 
             zasuvka_layout.addWidget(stav_premenna)
             zasuvka_layout.addWidget(zapni_btn)
@@ -107,8 +108,13 @@ class ControlApp(QWidget):
 
         # OTA aktualizácia
         self.btn_update = QPushButton("Aktualizovať z githubu")
-        self.btn_update.clicked.connect(perform_update)
+        self.btn_update.clicked.connect(self.update)
         layout.addWidget(self.btn_update)
+
+        # Log výstupy
+        self.log_widget = QTextEdit()
+        self.log_widget.setReadOnly(True)
+        layout.addWidget(self.log_widget)
 
         self.setLayout(layout)
         self.setWindowTitle('Ovládanie zariadení')
@@ -118,10 +124,16 @@ class ControlApp(QWidget):
         selected = self.list_widget.currentRow()
         if selected >= 0:
             device = self.devices[selected]
-            if send_wol(device['mac']):
-                print(f"Wake-on-LAN poslané: {device['name']}")
+            if send_wol(device['mac'], self.log_widget):
+                self.log_widget.append(f"Wake-on-LAN poslané: {device['name']}")
             else:
-                print(f"Chyba pri odosielaní: {device['name']}")
+                self.log_widget.append(f"Chyba pri odosielaní: {device['name']}")
+
+    def update(self):
+        if perform_update(self.log_widget):
+            self.log_widget.append("Aplikácia bola úspešne aktualizovaná.")
+        else:
+            self.log_widget.append("Aktualizácia zlyhala.")
 
 # Zariadenia pre Wake-on-LAN
 devices = [
