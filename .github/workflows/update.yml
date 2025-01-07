@@ -1,0 +1,25 @@
+name: Update Application on Hvezdaren
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  update-app:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: SSH to Hvezdaren and update application
+        uses: appleboy/ssh-action@v0.1.6
+        with:
+          host: ${{ secrets.HVEZDAREN_IP }}
+          username: ${{ secrets.HVEZDAREN_USER }}
+          key: ${{ secrets.HVEZDAREN_SSH_KEY }}
+          script: |
+            cd /path/to/your/app
+            git pull origin main
+            python3 main.py
