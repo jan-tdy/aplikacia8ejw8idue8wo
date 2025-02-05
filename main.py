@@ -5,7 +5,8 @@ import subprocess
 import requests
 import webbrowser
 import threading
-from datetime import datetime, time, sleep
+from datetime import datetime, time
+from time import sleep
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QListWidget, QTextEdit, QHBoxLayout, QLineEdit, QTabWidget
 
 # Program: JadivDevControl for C14, verzia 5.1
