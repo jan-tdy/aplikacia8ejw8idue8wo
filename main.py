@@ -5,100 +5,10 @@ import subprocess
 import requests
 import webbrowser
 from datetime import datetime
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QListWidget, QTextEdit, QHBoxLayout, QLineEdit
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QListWidget, QTextEdit, QHBoxLayout, QLineEdit, QTabWidget
 
 # Program: JadivDevControl for C14, verzia 5.1
 
-# --------------------------
-# Funkcia pre Wake-on-LAN
-def send_wol(mac_address, log_widget):
-    mac_address = mac_address.replace(':', '').replace('-', '')
-    if len(mac_address) != 12:
-        log_widget.append("Chyba: Neplatná MAC adresa.")
-        return False
-    try:
-        data = b'\xff' * 6 + bytes.fromhex(mac_address) * 16
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        sock.sendto(data, ('<broadcast>', 9))
-        log_widget.append(f"Wake-on-LAN poslané na {mac_address}.")
-        return True
-    except Exception as e:
-        log_widget.append(f"Chyba pri posielaní Wake-on-LAN: {e}")
-        return False
-
-# --------------------------
-# Funkcie pre ovládanie zásuviek (Energenie EGPMS2)
-def zapni_zasuvku(cislo_zasuvky, stav_label, log_widget):
-    try:
-        subprocess.check_call(["syspmctl", "-o", str(cislo_zasuvky)])
-        stav_label.setText("ON")
-        log_widget.append(f"Zásuvka {cislo_zasuvky} bola zapnutá.")
-    except subprocess.CalledProcessError as e:
-        log_widget.append(f"Chyba pri zapínaní zásuvky {cislo_zasuvky}: {e}")
-
-def vypni_zasuvku(cislo_zasuvky, stav_label, log_widget):
-    try:
-        subprocess.check_call(["syspmctl", "-f", str(cislo_zasuvky)])
-        stav_label.setText("OFF")
-        log_widget.append(f"Zásuvka {cislo_zasuvky} bola vypnutá.")
-    except subprocess.CalledProcessError as e:
-        log_widget.append(f"Chyba pri vypínaní zásuvky {cislo_zasuvky}: {e}")
-
-# --------------------------
-# OTA aktualizácia: prepíše súbor main.py
-def perform_update(log_widget):
-    update_url = 'https://github.com/jan-tdy/aplikacia8ejw8idue8wo/raw/main/main.py'
-    target_path = '/home/dpv/j44softapps-socketcontrol/main.py'
-    try:
-        response = requests.get(update_url)
-        if response.status_code == 200:
-            with open(target_path, 'wb') as f:
-                f.write(response.content)
-            log_widget.append("Aktualizácia stiahnutá a aplikovaná.")
-            log_widget.append("Zatvorte a znovu otvorte program.")
-            return True
-        else:
-            log_widget.append("Chyba pri stahovaní aktualizácie.")
-            return False
-    except requests.RequestException as e:
-        log_widget.append(f"Chyba pri stahovaní aktualizácie: {e}")
-        return False
-
-# --------------------------
-# Funkcia pre uloženie logov
-def save_logs(log_widget):
-    logs_dir = '/home/dpv/j44softapps-socketcontrol'
-    logs_file = os.path.join(logs_dir, 'logs.txt')
-    try:
-        with open(logs_file, 'a') as f:
-            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            f.write(f"\n=== Log uložený: {timestamp} ===\n")
-            f.write(log_widget.toPlainText())
-            f.write("\n")
-        log_widget.append("Logy boli uložené.")
-    except Exception as e:
-        log_widget.append(f"Chyba pri ukladaní logov: {e}")
-
-# --------------------------
-# Funkcia pre ovládanie strechy
-def run_strecha_on(log_widget):
-    target_dir = "/home/dpv/Downloads/usb-relay-hid-master/commandline/makemake"
-    command = f"cd {target_dir} && ./strecha_on.sh"
-    try:
-        subprocess.check_call(command, shell=True)
-        log_widget.append("Príkaz 'pohnut strechou' bol úspešne spustený.")
-    except subprocess.CalledProcessError as e:
-        log_widget.append(f"Chyba pri spúšťaní skriptu: {e}")
-
-# --------------------------
-# Funkcia na otvorenie stránky v predvolenom prehliadači
-def open_webpage():
-    url = "http://172.20.20.134"
-    webbrowser.open(url)
-
-# --------------------------
-# Hlavná GUI aplikácia
 class ControlApp(QWidget):
     def __init__(self, devices):
         super().__init__()
@@ -107,16 +17,45 @@ class ControlApp(QWidget):
 
     def init_ui(self):
         layout = QVBoxLayout()
+        self.tabs = QTabWidget()
 
-        # Zobrazenie názvu programu
-        title_label = QLabel("JadivDevControl for C14, verzia 5.1")
-        title_label.setStyleSheet("font-weight: bold; font-size: 16px;")
-        layout.addWidget(title_label)
+        # Karta Wake-on-LAN
+        self.tab_wol = QWidget()
+        self.init_wol_ui()
+        self.tabs.addTab(self.tab_wol, "Wake-on-LAN")
 
-        # Sekcia Wake-on-LAN
-        self.label = QLabel("Vyberte zariadenie na Wake-on-LAN:")
-        layout.addWidget(self.label)
+        # Karta Zásuvky
+        self.tab_zasuvky = QWidget()
+        self.init_zasuvky_ui()
+        self.tabs.addTab(self.tab_zasuvky, "Zásuvky")
 
+        # Karta Strecha
+        self.tab_strecha = QWidget()
+        self.init_strecha_ui()
+        self.tabs.addTab(self.tab_strecha, "Strecha")
+
+        # Karta Kamera
+        self.tab_kamera = QWidget()
+        self.init_kamera_ui()
+        self.tabs.addTab(self.tab_kamera, "Kamera")
+
+        # Karta Logy
+        self.tab_logy = QWidget()
+        self.init_logy_ui()
+        self.tabs.addTab(self.tab_logy, "Logy")
+
+        # Karta About
+        self.tab_about = QWidget()
+        self.init_about_ui()
+        self.tabs.addTab(self.tab_about, "About")
+
+        layout.addWidget(self.tabs)
+        self.setLayout(layout)
+        self.setWindowTitle("JadivDevControl for C14, verzia 5.1")
+        self.resize(800, 600)
+
+    def init_wol_ui(self):
+        layout = QVBoxLayout()
         self.list_widget = QListWidget()
         for device in self.devices:
             self.list_widget.addItem(f"{device['name']} - {device['mac']} - {device['ip']}")
@@ -130,46 +69,84 @@ class ControlApp(QWidget):
         self.btn_wake.clicked.connect(self.wake_device)
         layout.addWidget(self.btn_wake)
 
-        # Tlačidlo na otvorenie webovej stránky
-        btn_open_web = QPushButton("Otvoriť stránku")
-        btn_open_web.clicked.connect(open_webpage)
-        layout.addWidget(btn_open_web)
+        self.tab_wol.setLayout(layout)
 
-        # Log výstupy
+    def init_zasuvky_ui(self):
+        layout = QVBoxLayout()
+        slot_names = {1: "none(1)", 2: "AZ2000(2)", 3: "C14(3)", 4: "UNKNOWN(4)"}
+        for slot in range(1, 5):
+            zasuvka_layout = QHBoxLayout()
+            stav_label = QLabel("OFF")
+            btn_on = QPushButton(f"Zapnúť {slot_names[slot]}")
+            btn_off = QPushButton(f"Vypnúť {slot_names[slot]}")
+            zasuvka_layout.addWidget(stav_label)
+            zasuvka_layout.addWidget(btn_on)
+            zasuvka_layout.addWidget(btn_off)
+            layout.addLayout(zasuvka_layout)
+        self.tab_zasuvky.setLayout(layout)
+
+    def init_strecha_ui(self):
+        layout = QVBoxLayout()
+        btn_strecha_on = QPushButton("Pohnut strechou")
+        btn_strecha_on.clicked.connect(self.run_strecha_on)
+        layout.addWidget(btn_strecha_on)
+        self.tab_strecha.setLayout(layout)
+
+    def init_kamera_ui(self):
+        layout = QVBoxLayout()
+        btn_open_cam = QPushButton("Otvoriť kameru")
+        btn_open_cam.clicked.connect(lambda: webbrowser.open("http://172.20.20.134"))
+        layout.addWidget(btn_open_cam)
+        self.tab_kamera.setLayout(layout)
+
+    def init_logy_ui(self):
+        layout = QVBoxLayout()
         self.log_widget = QTextEdit()
         self.log_widget.setReadOnly(True)
         layout.addWidget(self.log_widget)
-
-        # Tlačidlo pre uloženie logov
         btn_save_logs = QPushButton("Save logs")
-        btn_save_logs.clicked.connect(lambda: save_logs(self.log_widget))
+        btn_save_logs.clicked.connect(self.save_logs)
         layout.addWidget(btn_save_logs)
+        self.tab_logy.setLayout(layout)
 
-        self.setLayout(layout)
-        self.setWindowTitle("JadivDevControl for C14, verzia 5.1")
-        self.resize(800, 600)
+    def init_about_ui(self):
+        layout = QVBoxLayout()
+        about_label = QLabel("""
+        JadivDevControl for C14, verzia 5.1
+        Stiahnuť main.py
+        Funkcia OTA update potrebuje internetové pripojenie.
+        Treba nainštalovať všetky závislosti cez pip.
+        
+        ⚠️ Tento program je určený LEN pre počítač na observatóriu Kolonické sedlo
+        pri ďalekohľade C14.
+        
+        Verziu pre vaše použitie vám radi vytvoríme, kontaktujte nás na:
+        📧 j44soft@gmail.com
+        
+        🆕 Zmeny vo verzii 5.1
+        ✅ Odstránený QWebEngineView, čím sa eliminujú závislosti na PyQtWebEngine.
+        ✅ Pridané tlačidlo „Otvoriť kameru“, ktoré spustí predvolený prehliadač.
+        """)
+        layout.addWidget(about_label)
+        self.tab_about.setLayout(layout)
 
     def wake_device(self):
         selected = self.list_widget.currentRow()
         mac_address = self.mac_input.text().strip()
-
         if selected >= 0:
             device = self.devices[selected]
             mac_address = device['mac']
-
         if mac_address:
             send_wol(mac_address, self.log_widget)
         else:
             self.log_widget.append("Nezadaná MAC adresa!")
 
-    def update(self):
-        if perform_update(self.log_widget):
-            self.log_widget.append("Aplikácia bola úspešne aktualizovaná.")
-        else:
-            self.log_widget.append("Aktualizácia zlyhala.")
+    def run_strecha_on(self):
+        subprocess.run(["/home/dpv/Downloads/usb-relay-hid-master/commandline/makemake/strecha_on.sh"], shell=True)
 
-# --------------------------
-# Spustenie aplikácie
+    def save_logs(self):
+        pass  # Implementovať ukladanie logov
+
 if __name__ == "__main__":
     devices = [
         {'name': 'hlavny', 'mac': 'e0:d5:5e:df:c6:4e', 'ip': '172.20.20.133'},
