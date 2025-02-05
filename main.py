@@ -92,6 +92,45 @@ class ControlApp(QWidget):
 
         self.tab_wol.setLayout(layout)
     
+    def init_zasuvky_ui(self):
+        layout = QVBoxLayout()
+        slot_names = {1: "none(1)", 2: "AZ2000(2)", 3: "C14(3)", 4: "UNKNOWN(4)"}
+        for slot in range(1, 5):
+            zasuvka_layout = QHBoxLayout()
+            stav_label = QLabel("OFF")
+            btn_on = QPushButton(f"Zapnúť {slot_names[slot]}")
+            btn_off = QPushButton(f"Vypnúť {slot_names[slot]}")
+            btn_on.clicked.connect(lambda checked, slot=slot: self.zapni_zasuvku(slot))
+            btn_off.clicked.connect(lambda checked, slot=slot: self.vypni_zasuvku(slot))
+            zasuvka_layout.addWidget(stav_label)
+            zasuvka_layout.addWidget(btn_on)
+            zasuvka_layout.addWidget(btn_off)
+            layout.addLayout(zasuvka_layout)
+        self.tab_zasuvky.setLayout(layout)
+
+    def zapni_zasuvku(self, slot):
+        subprocess.run(["syspmctl", "-o", str(slot)], shell=True)
+
+    def vypni_zasuvku(self, slot):
+        subprocess.run(["syspmctl", "-f", str(slot)], shell=True)
+
+    def init_strecha_ui(self):
+        layout = QVBoxLayout()
+        btn_strecha_on = QPushButton("Pohnut strechou")
+        btn_strecha_on.clicked.connect(self.run_strecha_on)
+        layout.addWidget(btn_strecha_on)
+        self.tab_strecha.setLayout(layout)
+
+    def run_strecha_on(self):
+        subprocess.run(["/home/dpv/Downloads/usb-relay-hid-master/commandline/makemake/strecha_on.sh"], shell=True)
+
+    def init_kamera_ui(self):
+        layout = QVBoxLayout()
+        btn_open_cam = QPushButton("Otvoriť kameru")
+        btn_open_cam.clicked.connect(lambda: webbrowser.open("http://172.20.20.134"))
+        layout.addWidget(btn_open_cam)
+        self.tab_kamera.setLayout(layout)
+    
     def wake_device(self):
         selected = self.list_widget.currentRow()
         mac_address = self.mac_input.text().strip()
