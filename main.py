@@ -142,6 +142,13 @@ class ControlApp(QWidget):
         else:
             print("Nezadaná MAC adresa!")
 
+    def init_logy_ui(self):
+        layout = QVBoxLayout()
+        self.log_widget = QTextEdit()
+        self.log_widget.setReadOnly(True)
+        layout.addWidget(self.log_widget)
+        self.tab_logy.setLayout(layout)
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     devices = [
