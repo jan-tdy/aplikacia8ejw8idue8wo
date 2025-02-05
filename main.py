@@ -3,11 +3,11 @@ import os
 import socket
 import subprocess
 import requests
+import webbrowser
 from datetime import datetime
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QListWidget, QTextEdit, QHBoxLayout, QLineEdit
-from PyQt5.QtWebEngineWidgets import QWebEngineView
 
-# Program: JadivDevControl for C14, verzia 5-2-2025_05
+# Program: JadivDevControl for C14, verzia 5.1
 
 # --------------------------
 # Funkcia pre Wake-on-LAN
@@ -92,6 +92,12 @@ def run_strecha_on(log_widget):
         log_widget.append(f"Chyba pri spúšťaní skriptu: {e}")
 
 # --------------------------
+# Funkcia na otvorenie stránky v predvolenom prehliadači
+def open_webpage():
+    url = "http://172.20.20.134"
+    webbrowser.open(url)
+
+# --------------------------
 # Hlavná GUI aplikácia
 class ControlApp(QWidget):
     def __init__(self, devices):
@@ -103,7 +109,7 @@ class ControlApp(QWidget):
         layout = QVBoxLayout()
 
         # Zobrazenie názvu programu
-        title_label = QLabel("JadivDevControl for C14, verzia 5-2-2025_05")
+        title_label = QLabel("JadivDevControl for C14, verzia 5.1")
         title_label.setStyleSheet("font-weight: bold; font-size: 16px;")
         layout.addWidget(title_label)
 
@@ -124,42 +130,52 @@ class ControlApp(QWidget):
         self.btn_wake.clicked.connect(self.wake_device)
         layout.addWidget(self.btn_wake)
 
-        # Ovládanie zásuviek
-        zasuvky_label = QLabel("Lokálne ovládanie zásuviek (Energenie EGPMS2 - 4 sloty):")
-        layout.addWidget(zasuvky_label)
-        self.zasuvky_layout = QVBoxLayout()
-        slot_names = {1: "none(1)", 2: "AZ2000(2)", 3: "C14(3)", 4: "UNKNOWN(4)"}
-        for slot in range(1, 5):
-            zasuvka_layout = QHBoxLayout()
-            stav_label = QLabel("OFF")
-            btn_on = QPushButton(f"Zapnúť {slot_names[slot]}")
-            btn_on.clicked.connect(lambda checked, slot=slot, stav=stav_label: zapni_zasuvku(slot, stav, self.log_widget))
-            btn_off = QPushButton(f"Vypnúť {slot_names[slot]}")
-            btn_off.clicked.connect(lambda checked, slot=slot, stav=stav_label: vypni_zasuvku(slot, stav, self.log_widget))
-            zasuvka_layout.addWidget(stav_label)
-            zasuvka_layout.addWidget(btn_on)
-            zasuvka_layout.addWidget(btn_off)
-            self.zasuvky_layout.addLayout(zasuvka_layout)
-        layout.addLayout(self.zasuvky_layout)
+        # Tlačidlo na otvorenie webovej stránky
+        btn_open_web = QPushButton("Otvoriť stránku")
+        btn_open_web.clicked.connect(open_webpage)
+        layout.addWidget(btn_open_web)
 
-        # Ovládanie strechy
-        btn_strecha_on = QPushButton("Pohnut strechou")
-        btn_strecha_on.clicked.connect(lambda: run_strecha_on(self.log_widget))
-        layout.addWidget(btn_strecha_on)
-
-        # Zobrazenie webovej stránky
-        self.web_view = QWebEngineView()
-        self.web_view.setUrl("http://172.20.20.134")
-        layout.addWidget(self.web_view)
-
+        # Log výstupy
         self.log_widget = QTextEdit()
         self.log_widget.setReadOnly(True)
         layout.addWidget(self.log_widget)
 
+        # Tlačidlo pre uloženie logov
         btn_save_logs = QPushButton("Save logs")
         btn_save_logs.clicked.connect(lambda: save_logs(self.log_widget))
         layout.addWidget(btn_save_logs)
 
         self.setLayout(layout)
-        self.setWindowTitle("JadivDevControl for C14, verzia 5-2-2025_05")
-        self.resize(800, 800)
+        self.setWindowTitle("JadivDevControl for C14, verzia 5.1")
+        self.resize(800, 600)
+
+    def wake_device(self):
+        selected = self.list_widget.currentRow()
+        mac_address = self.mac_input.text().strip()
+
+        if selected >= 0:
+            device = self.devices[selected]
+            mac_address = device['mac']
+
+        if mac_address:
+            send_wol(mac_address, self.log_widget)
+        else:
+            self.log_widget.append("Nezadaná MAC adresa!")
+
+    def update(self):
+        if perform_update(self.log_widget):
+            self.log_widget.append("Aplikácia bola úspešne aktualizovaná.")
+        else:
+            self.log_widget.append("Aktualizácia zlyhala.")
+
+# --------------------------
+# Spustenie aplikácie
+if __name__ == "__main__":
+    devices = [
+        {'name': 'hlavny', 'mac': 'e0:d5:5e:df:c6:4e', 'ip': '172.20.20.133'},
+        {'name': 'VNT', 'mac': '78:24:af:9c:06:e7', 'ip': '172.20.20.123'},
+    ]
+    app = QApplication(sys.argv)
+    window = ControlApp(devices)
+    window.show()
+    sys.exit(app.exec_())
