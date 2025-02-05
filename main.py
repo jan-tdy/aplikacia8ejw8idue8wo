@@ -5,7 +5,7 @@ import subprocess
 import requests
 import webbrowser
 import threading
-from datetime import datetime, time
+from datetime import datetime
 from time import sleep
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QListWidget, QTextEdit, QHBoxLayout, QLineEdit, QTabWidget
 
@@ -22,7 +22,7 @@ def check_for_updates(log_widget):
                     local_content = f.read()
                 if response.content != local_content:
                     log_widget.append("Nová verzia aplikácie je dostupná na Githube!")
-            sleep(900)  # Kontrola každých 15 minút
+            sleep(900)
         except requests.RequestException as e:
             log_widget.append(f"Chyba pri kontrole aktualizácie: {e}")
 
@@ -37,42 +37,33 @@ class ControlApp(QWidget):
         layout = QVBoxLayout()
         self.tabs = QTabWidget()
 
-        # Karta Wake-on-LAN
         self.tab_wol = QWidget()
         self.init_wol_ui()
         self.tabs.addTab(self.tab_wol, "Wake-on-LAN")
 
-        # Karta Zásuvky
         self.tab_zasuvky = QWidget()
         self.init_zasuvky_ui()
         self.tabs.addTab(self.tab_zasuvky, "Zásuvky")
 
-        # Karta Strecha
         self.tab_strecha = QWidget()
         self.init_strecha_ui()
         self.tabs.addTab(self.tab_strecha, "Strecha")
 
-        # Karta Kamera
         self.tab_kamera = QWidget()
         self.init_kamera_ui()
         self.tabs.addTab(self.tab_kamera, "Kamera")
 
-        # Karta Logy
         self.tab_logy = QWidget()
         self.init_logy_ui()
         self.tabs.addTab(self.tab_logy, "Logy")
 
-        # Karta About
-        self.tab_about = QWidget()
-        self.init_about_ui()
-        self.tabs.addTab(self.tab_about, "About")
-
         layout.addWidget(self.tabs)
         self.setLayout(layout)
-        self.setWindowTitle("JadivDevControl for C14, verzia 5.1")
+        self.setWindowTitle("JadivDevControl for C14, verzia 6")
         self.resize(800, 600)
 
     def start_update_checker(self):
+        self.log_widget = QTextEdit()
         threading.Thread(target=check_for_updates, args=(self.log_widget,), daemon=True).start()
 
     def init_wol_ui(self):
@@ -81,16 +72,24 @@ class ControlApp(QWidget):
         for device in self.devices:
             self.list_widget.addItem(f"{device['name']} - {device['mac']} - {device['ip']}")
         layout.addWidget(self.list_widget)
-
         self.mac_input = QLineEdit()
         self.mac_input.setPlaceholderText("Zadajte MAC adresu pre WOL")
         layout.addWidget(self.mac_input)
-
         self.btn_wake = QPushButton("Wake")
         self.btn_wake.clicked.connect(self.wake_device)
         layout.addWidget(self.btn_wake)
-
         self.tab_wol.setLayout(layout)
+    
+    def wake_device(self):
+        selected = self.list_widget.currentRow()
+        mac_address = self.mac_input.text().strip()
+        if selected >= 0:
+            device = self.devices[selected]
+            mac_address = device['mac']
+        if mac_address:
+            subprocess.run(["wakeonlan", mac_address], shell=True)
+        else:
+            print("Nezadaná MAC adresa!")
     
     def init_zasuvky_ui(self):
         layout = QVBoxLayout()
@@ -123,7 +122,7 @@ class ControlApp(QWidget):
 
     def run_strecha_on(self):
         subprocess.run(["/home/dpv/Downloads/usb-relay-hid-master/commandline/makemake/strecha_on.sh"], shell=True)
-
+    
     def init_kamera_ui(self):
         layout = QVBoxLayout()
         btn_open_cam = QPushButton("Otvoriť kameru")
@@ -131,24 +130,6 @@ class ControlApp(QWidget):
         layout.addWidget(btn_open_cam)
         self.tab_kamera.setLayout(layout)
     
-    def wake_device(self):
-        selected = self.list_widget.currentRow()
-        mac_address = self.mac_input.text().strip()
-        if selected >= 0:
-            device = self.devices[selected]
-            mac_address = device['mac']
-        if mac_address:
-            subprocess.run(["wakeonlan", mac_address], shell=True)
-        else:
-            print("Nezadaná MAC adresa!")
-
-    def init_logy_ui(self):
-        layout = QVBoxLayout()
-        self.log_widget = QTextEdit()
-        self.log_widget.setReadOnly(True)
-        layout.addWidget(self.log_widget)
-        self.tab_logy.setLayout(layout)
-
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     devices = [
