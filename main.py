@@ -84,12 +84,12 @@ def save_logs(log_widget):
 # --------------------------
 # Funkcia pre ovládanie relé cez spustenie shell skriptu
 def run_strecha_on(log_widget):
-    # Absolútna cesta k skriptu
-    script_path = "/Downloads/usb-relay-hid-master/commandline/makemake/strecha_on.sh"
+    # Zmeňte adresár na ten, kde sa nachádza skript a spustite ho
+    target_dir = "/home/dpv/Downloads/usb-relay-hid-master/commandline/makemake"
+    command = "cd {} && ./strecha_on.sh".format(target_dir)
     try:
-        # Spustenie shell skriptu
-        subprocess.check_call(["/bin/sh", script_path])
-        log_widget.append("Príkaz pre 'pohnut strechou' bol úspešne spustený.")
+        subprocess.check_call(command, shell=True)
+        log_widget.append("Príkaz 'pohnut strechou' bol úspešne spustený.")
     except subprocess.CalledProcessError as e:
         log_widget.append(f"Chyba pri spúšťaní skriptu: {e}")
 
