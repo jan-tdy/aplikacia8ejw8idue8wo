@@ -4,9 +4,10 @@ import socket
 import subprocess
 import requests
 from datetime import datetime
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QListWidget, QTextEdit, QHBoxLayout
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QListWidget, QTextEdit, QHBoxLayout, QLineEdit
+from PyQt5.QtWebEngineWidgets import QWebEngineView
 
-# Program: JadivDevControl for C14, verzia 5-2-2025_04
+# Program: JadivDevControl for C14, verzia 5-2-2025_05
 
 # --------------------------
 # Funkcia pre Wake-on-LAN
@@ -28,8 +29,6 @@ def send_wol(mac_address, log_widget):
 
 # --------------------------
 # Funkcie pre ovládanie zásuviek (Energenie EGPMS2)
-# Zapnutie: syspmctl -o {slot}
-# Vypnutie: syspmctl -f {slot}
 def zapni_zasuvku(cislo_zasuvky, stav_label, log_widget):
     try:
         subprocess.check_call(["syspmctl", "-o", str(cislo_zasuvky)])
@@ -47,9 +46,9 @@ def vypni_zasuvku(cislo_zasuvky, stav_label, log_widget):
         log_widget.append(f"Chyba pri vypínaní zásuvky {cislo_zasuvky}: {e}")
 
 # --------------------------
-# OTA aktualizácia: prepíše súbor main.py na ceste /home/dpv/j44softapps-socketcontrol/main.py
+# OTA aktualizácia: prepíše súbor main.py
 def perform_update(log_widget):
-    update_url = 'https://github.com/jan-tdy/aplikacia8ejw8idue8wo/raw/main/main.py'  # URL priamo na súbor
+    update_url = 'https://github.com/jan-tdy/aplikacia8ejw8idue8wo/raw/main/main.py'
     target_path = '/home/dpv/j44softapps-socketcontrol/main.py'
     try:
         response = requests.get(update_url)
@@ -67,7 +66,7 @@ def perform_update(log_widget):
         return False
 
 # --------------------------
-# Funkcia pre uloženie logov do súboru (append, s aktuálnym dátumom a časom)
+# Funkcia pre uloženie logov
 def save_logs(log_widget):
     logs_dir = '/home/dpv/j44softapps-socketcontrol'
     logs_file = os.path.join(logs_dir, 'logs.txt')
@@ -82,11 +81,10 @@ def save_logs(log_widget):
         log_widget.append(f"Chyba pri ukladaní logov: {e}")
 
 # --------------------------
-# Funkcia pre ovládanie relé cez spustenie shell skriptu
+# Funkcia pre ovládanie strechy
 def run_strecha_on(log_widget):
-    # Zmeňte adresár na ten, kde sa nachádza skript a spustite ho
     target_dir = "/home/dpv/Downloads/usb-relay-hid-master/commandline/makemake"
-    command = "cd {} && ./strecha_on.sh".format(target_dir)
+    command = f"cd {target_dir} && ./strecha_on.sh"
     try:
         subprocess.check_call(command, shell=True)
         log_widget.append("Príkaz 'pohnut strechou' bol úspešne spustený.")
@@ -105,7 +103,7 @@ class ControlApp(QWidget):
         layout = QVBoxLayout()
 
         # Zobrazenie názvu programu
-        title_label = QLabel("JadivDevControl for C14, verzia 5-2-2025_04")
+        title_label = QLabel("JadivDevControl for C14, verzia 5-2-2025_05")
         title_label.setStyleSheet("font-weight: bold; font-size: 16px;")
         layout.addWidget(title_label)
 
@@ -118,15 +116,18 @@ class ControlApp(QWidget):
             self.list_widget.addItem(f"{device['name']} - {device['mac']} - {device['ip']}")
         layout.addWidget(self.list_widget)
 
+        self.mac_input = QLineEdit()
+        self.mac_input.setPlaceholderText("Zadajte MAC adresu pre WOL")
+        layout.addWidget(self.mac_input)
+
         self.btn_wake = QPushButton("Wake")
         self.btn_wake.clicked.connect(self.wake_device)
         layout.addWidget(self.btn_wake)
 
-        # Lokálne ovládanie zásuviek (Energenie EGPMS2 - 4 sloty)
+        # Ovládanie zásuviek
         zasuvky_label = QLabel("Lokálne ovládanie zásuviek (Energenie EGPMS2 - 4 sloty):")
         layout.addWidget(zasuvky_label)
         self.zasuvky_layout = QVBoxLayout()
-        # Sloty s názvami: 1 = none(1), 2 = AZ2000(2), 3 = C14(3), 4 = UNKNOWN(4)
         slot_names = {1: "none(1)", 2: "AZ2000(2)", 3: "C14(3)", 4: "UNKNOWN(4)"}
         for slot in range(1, 5):
             zasuvka_layout = QHBoxLayout()
@@ -141,59 +142,24 @@ class ControlApp(QWidget):
             self.zasuvky_layout.addLayout(zasuvka_layout)
         layout.addLayout(self.zasuvky_layout)
 
-        # Ovládanie USB relé – tlačidlo pre spustenie skriptu "strecha_on.sh"
-        relay_label = QLabel("Ovládanie USB relé (pohnut strechou):")
-        layout.addWidget(relay_label)
+        # Ovládanie strechy
         btn_strecha_on = QPushButton("Pohnut strechou")
         btn_strecha_on.clicked.connect(lambda: run_strecha_on(self.log_widget))
         layout.addWidget(btn_strecha_on)
 
-        # OTA aktualizácia
-        self.btn_update = QPushButton("Aktualizovať z githubu")
-        self.btn_update.clicked.connect(self.update)
-        layout.addWidget(self.btn_update)
+        # Zobrazenie webovej stránky
+        self.web_view = QWebEngineView()
+        self.web_view.setUrl("http://172.20.20.134")
+        layout.addWidget(self.web_view)
 
-        # Log výstupy
         self.log_widget = QTextEdit()
         self.log_widget.setReadOnly(True)
         layout.addWidget(self.log_widget)
 
-        # Tlačidlo pre uloženie logov
         btn_save_logs = QPushButton("Save logs")
         btn_save_logs.clicked.connect(lambda: save_logs(self.log_widget))
         layout.addWidget(btn_save_logs)
 
         self.setLayout(layout)
-        self.setWindowTitle("JadivDevControl for C14, verzia 5-2-2025_04")
-        self.resize(600, 800)
-
-    def wake_device(self):
-        selected = self.list_widget.currentRow()
-        if selected >= 0:
-            device = self.devices[selected]
-            if send_wol(device['mac'], self.log_widget):
-                self.log_widget.append(f"Wake-on-LAN poslané: {device['name']}")
-            else:
-                self.log_widget.append(f"Chyba pri odosielaní: {device['name']}")
-
-    def update(self):
-        if perform_update(self.log_widget):
-            self.log_widget.append("Aplikácia bola úspešne aktualizovaná.")
-        else:
-            self.log_widget.append("Aktualizácia zlyhala.")
-
-# --------------------------
-# Spustenie aplikácie
-if __name__ == "__main__":
-    # Príklad zoznamu zariadení pre Wake-on-LAN – upravte podľa potreby
-    devices = [
-        {'name': 'hlavny', 'mac': 'e0:d5:5e:df:c6:4e', 'ip': '172.20.20.133'},
-        {'name': 'VNT', 'mac': '78:24:af:9c:06:e7', 'ip': '172.20.20.123'},
-        {'name': 'C14', 'mac': 'e0:d5:5e:37:4f:ad', 'ip': '172.20.20.103'},
-        {'name': 'AZ2000', 'mac': '00:c0:08:a9:c2:32', 'ip': '172.20.20.10'},
-        {'name': 'GM3000', 'mac': '00:c0:08:aa:35:12', 'ip': '172.20.20.12'}
-    ]
-    app = QApplication(sys.argv)
-    window = ControlApp(devices)
-    window.show()
-    sys.exit(app.exec_())
+        self.setWindowTitle("JadivDevControl for C14, verzia 5-2-2025_05")
+        self.resize(800, 800)
