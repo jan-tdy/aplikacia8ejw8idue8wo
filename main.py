@@ -1,14 +1,12 @@
 import sys
 import os
-import usb.core
-import usb.util
 import socket
 import subprocess
 import requests
 from datetime import datetime
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QListWidget, QTextEdit, QHBoxLayout
 
-# Program: JadivDevControl for C14, verzia 5-2-2025_03
+# Program: JadivDevControl for C14, verzia 5-2-2025_04
 
 # --------------------------
 # Funkcia pre Wake-on-LAN
@@ -84,36 +82,16 @@ def save_logs(log_widget):
         log_widget.append(f"Chyba pri ukladaní logov: {e}")
 
 # --------------------------
-# Funkcia pre nájdenie USB relé zariadenia (HID) 
-def find_usb_relay():
-    # Nájde prvé USB zariadenie - v reálnom prípade možno filtrovať podľa idVendor/idProduct
-    devices = usb.core.find(find_all=True)
-    for d in devices:
-        # Ak by bolo potrebné filtrovať, pridajte podmienky
-        return d
-    return None
-
-# Funkcia pre ovládanie USB relé
-def control_usb_relay(usb_device, channel, action, log_widget):
-    if usb_device is None:
-        log_widget.append("USB relé zariadenie nebolo nájdené!")
-        return
+# Funkcia pre ovládanie relé cez spustenie shell skriptu
+def run_strecha_on(log_widget):
+    # Absolútna cesta k skriptu
+    script_path = "/Downloads/usb-relay-hid-master/commandline/makemake/strecha_on.sh"
     try:
-        # Predpokladáme, že príkaz pre kanál 1 je 0x01 a pre kanál 2 je 0x02.
-        # Ak je action "on", parameter je 0x0001, ak "off", parameter je 0x0000.
-        if channel == 1:
-            command = 0x01
-        elif channel == 2:
-            command = 0x02
-        else:
-            log_widget.append("Neplatný kanál pre USB relé.")
-            return
-
-        value = 0x0001 if action == "on" else 0x0000
-        usb_device.ctrl_transfer(0x40, command, value, 0, None)
-        log_widget.append(f"USB relé kanál {channel} bol nastavený na {action}.")
-    except Exception as e:
-        log_widget.append(f"Chyba pri ovládaní USB relé: {e}")
+        # Spustenie shell skriptu
+        subprocess.check_call(["/bin/sh", script_path])
+        log_widget.append("Príkaz pre 'pohnut strechou' bol úspešne spustený.")
+    except subprocess.CalledProcessError as e:
+        log_widget.append(f"Chyba pri spúšťaní skriptu: {e}")
 
 # --------------------------
 # Hlavná GUI aplikácia
@@ -121,14 +99,13 @@ class ControlApp(QWidget):
     def __init__(self, devices):
         super().__init__()
         self.devices = devices
-        self.usb_relay = find_usb_relay()  # Nájde USB relé zariadenie
         self.init_ui()
 
     def init_ui(self):
         layout = QVBoxLayout()
 
         # Zobrazenie názvu programu
-        title_label = QLabel("JadivDevControl for C14, verzia 5-2-2025_03")
+        title_label = QLabel("JadivDevControl for C14, verzia 5-2-2025_04")
         title_label.setStyleSheet("font-weight: bold; font-size: 16px;")
         layout.addWidget(title_label)
 
@@ -149,7 +126,7 @@ class ControlApp(QWidget):
         zasuvky_label = QLabel("Lokálne ovládanie zásuviek (Energenie EGPMS2 - 4 sloty):")
         layout.addWidget(zasuvky_label)
         self.zasuvky_layout = QVBoxLayout()
-        # Definované sloty: 1 = none(1), 2 = AZ2000(2), 3 = C14(3), 4 = UNKNOWN(4)
+        # Sloty s názvami: 1 = none(1), 2 = AZ2000(2), 3 = C14(3), 4 = UNKNOWN(4)
         slot_names = {1: "none(1)", 2: "AZ2000(2)", 3: "C14(3)", 4: "UNKNOWN(4)"}
         for slot in range(1, 5):
             zasuvka_layout = QHBoxLayout()
@@ -164,23 +141,12 @@ class ControlApp(QWidget):
             self.zasuvky_layout.addLayout(zasuvka_layout)
         layout.addLayout(self.zasuvky_layout)
 
-        # Ovládanie USB relé (2-kanálové)
-        relay_label = QLabel("Ovládanie 2-kanálového USB relé:")
+        # Ovládanie USB relé – tlačidlo pre spustenie skriptu "strecha_on.sh"
+        relay_label = QLabel("Ovládanie USB relé (pohnut strechou):")
         layout.addWidget(relay_label)
-        relay_layout = QHBoxLayout()
-        btn_relay1_on = QPushButton("Zapnúť relé 1")
-        btn_relay1_on.clicked.connect(lambda: control_usb_relay(self.usb_relay, 1, "on", self.log_widget))
-        relay_layout.addWidget(btn_relay1_on)
-        btn_relay1_off = QPushButton("Vypnúť relé 1")
-        btn_relay1_off.clicked.connect(lambda: control_usb_relay(self.usb_relay, 1, "off", self.log_widget))
-        relay_layout.addWidget(btn_relay1_off)
-        btn_relay2_on = QPushButton("Zapnúť relé 2")
-        btn_relay2_on.clicked.connect(lambda: control_usb_relay(self.usb_relay, 2, "on", self.log_widget))
-        relay_layout.addWidget(btn_relay2_on)
-        btn_relay2_off = QPushButton("Vypnúť relé 2")
-        btn_relay2_off.clicked.connect(lambda: control_usb_relay(self.usb_relay, 2, "off", self.log_widget))
-        relay_layout.addWidget(btn_relay2_off)
-        layout.addLayout(relay_layout)
+        btn_strecha_on = QPushButton("Pohnut strechou")
+        btn_strecha_on.clicked.connect(lambda: run_strecha_on(self.log_widget))
+        layout.addWidget(btn_strecha_on)
 
         # OTA aktualizácia
         self.btn_update = QPushButton("Aktualizovať z githubu")
@@ -198,7 +164,7 @@ class ControlApp(QWidget):
         layout.addWidget(btn_save_logs)
 
         self.setLayout(layout)
-        self.setWindowTitle("JadivDevControl for C14, verzia 5-2-2025_03")
+        self.setWindowTitle("JadivDevControl for C14, verzia 5-2-2025_04")
         self.resize(600, 800)
 
     def wake_device(self):
@@ -231,4 +197,3 @@ if __name__ == "__main__":
     window = ControlApp(devices)
     window.show()
     sys.exit(app.exec_())
-
