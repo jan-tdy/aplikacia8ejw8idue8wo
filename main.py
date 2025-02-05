@@ -54,7 +54,7 @@ class ControlApp(QWidget):
         self.tabs.addTab(self.tab_kamera, "Kamera")
 
         self.tab_logy = QWidget()
-        self.init_logy_ui()
+        self.init_log_ui()
         self.tabs.addTab(self.tab_logy, "Logy")
 
         layout.addWidget(self.tabs)
@@ -66,6 +66,13 @@ class ControlApp(QWidget):
         self.log_widget = QTextEdit()
         threading.Thread(target=check_for_updates, args=(self.log_widget,), daemon=True).start()
 
+    def init_log_ui(self):
+        layout = QVBoxLayout()
+        self.log_widget = QTextEdit()
+        self.log_widget.setReadOnly(True)
+        layout.addWidget(self.log_widget)
+        self.tab_logy.setLayout(layout)
+    
     def init_wol_ui(self):
         layout = QVBoxLayout()
         self.list_widget = QListWidget()
@@ -90,45 +97,6 @@ class ControlApp(QWidget):
             subprocess.run(["wakeonlan", mac_address], shell=True)
         else:
             print("Nezadaná MAC adresa!")
-    
-    def init_zasuvky_ui(self):
-        layout = QVBoxLayout()
-        slot_names = {1: "none(1)", 2: "AZ2000(2)", 3: "C14(3)", 4: "UNKNOWN(4)"}
-        for slot in range(1, 5):
-            zasuvka_layout = QHBoxLayout()
-            stav_label = QLabel("OFF")
-            btn_on = QPushButton(f"Zapnúť {slot_names[slot]}")
-            btn_off = QPushButton(f"Vypnúť {slot_names[slot]}")
-            btn_on.clicked.connect(lambda checked, slot=slot: self.zapni_zasuvku(slot))
-            btn_off.clicked.connect(lambda checked, slot=slot: self.vypni_zasuvku(slot))
-            zasuvka_layout.addWidget(stav_label)
-            zasuvka_layout.addWidget(btn_on)
-            zasuvka_layout.addWidget(btn_off)
-            layout.addLayout(zasuvka_layout)
-        self.tab_zasuvky.setLayout(layout)
-
-    def zapni_zasuvku(self, slot):
-        subprocess.run(["syspmctl", "-o", str(slot)], shell=True)
-
-    def vypni_zasuvku(self, slot):
-        subprocess.run(["syspmctl", "-f", str(slot)], shell=True)
-
-    def init_strecha_ui(self):
-        layout = QVBoxLayout()
-        btn_strecha_on = QPushButton("Pohnut strechou")
-        btn_strecha_on.clicked.connect(self.run_strecha_on)
-        layout.addWidget(btn_strecha_on)
-        self.tab_strecha.setLayout(layout)
-
-    def run_strecha_on(self):
-        subprocess.run(["/home/dpv/Downloads/usb-relay-hid-master/commandline/makemake/strecha_on.sh"], shell=True)
-    
-    def init_kamera_ui(self):
-        layout = QVBoxLayout()
-        btn_open_cam = QPushButton("Otvoriť kameru")
-        btn_open_cam.clicked.connect(lambda: webbrowser.open("http://172.20.20.134"))
-        layout.addWidget(btn_open_cam)
-        self.tab_kamera.setLayout(layout)
     
 if __name__ == "__main__":
     app = QApplication(sys.argv)
