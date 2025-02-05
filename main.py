@@ -1,11 +1,14 @@
 import sys
+import os
 import usb.core
 import usb.util
 import socket
 import subprocess
 import requests
-import paramiko  # Knižnica pre SSH pripojenie
+from datetime import datetime
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QListWidget, QTextEdit, QHBoxLayout
+
+# Program: JadivDevControl for C14, verzia 5-2-2025_01
 
 # Funkcia pre Wake-on-LAN
 def send_wol(mac_address, log_widget):
@@ -24,35 +27,34 @@ def send_wol(mac_address, log_widget):
         log_widget.append(f"Chyba pri posielaní Wake-on-LAN: {e}")
         return False
 
-# Funkcie pre ovládanie zásuviek
+# Funkcie pre lokálne ovládanie zásuviek (Energenie EGPMS2)
 def zapni_zasuvku(cislo_zasuvky, stav_label, log_widget):
-    """Zapne zadanú zásuvku a aktualizuje stav."""
     try:
-        subprocess.check_call(["sispmctl", "-o", str(cislo_zasuvky)])
+        subprocess.check_call(["syspmctl", "-o", str(cislo_zasuvky)])
         stav_label.setText("ON")
         log_widget.append(f"Zásuvka {cislo_zasuvky} bola zapnutá.")
     except subprocess.CalledProcessError as e:
         log_widget.append(f"Chyba pri zapínaní zásuvky {cislo_zasuvky}: {e}")
 
 def vypni_zasuvku(cislo_zasuvky, stav_label, log_widget):
-    """Vypne zadanú zásuvku a aktualizuje stav."""
     try:
-        subprocess.check_call(["sispmctl", "-f", str(cislo_zasuvky)])
+        subprocess.check_call(["syspmctl", "-f", str(cislo_zasuvky)])
         stav_label.setText("OFF")
         log_widget.append(f"Zásuvka {cislo_zasuvky} bola vypnutá.")
     except subprocess.CalledProcessError as e:
         log_widget.append(f"Chyba pri vypínaní zásuvky {cislo_zasuvky}: {e}")
 
-# OTA aktualizácia
+# OTA aktualizácia: prepíše súbor main.py na danej ceste
 def perform_update(log_widget):
-    """Stiahne a nainštaluje aktualizáciu."""
     update_url = 'https://github.com/jan-tdy/aplikacia8ejw8idue8wo/raw/main/main.py'  # URL priamo na súbor
+    target_path = '/home/dpv/j44softapps-socketcontrol/main.py'
     try:
         response = requests.get(update_url)
         if response.status_code == 200:
-            with open('main.py', 'wb') as f:
+            with open(target_path, 'wb') as f:
                 f.write(response.content)
             log_widget.append("Aktualizácia stiahnutá a aplikovaná.")
+            log_widget.append("Zatvorte a znovu otvorte program.")
             return True
         else:
             log_widget.append("Chyba pri stahovaní aktualizácie.")
@@ -61,30 +63,21 @@ def perform_update(log_widget):
         log_widget.append(f"Chyba pri stahovaní aktualizácie: {e}")
         return False
 
-# Funkcia pre odoslanie príkazov na Windows verziu cez SSH
-def send_ssh_command(command, log_widget):
-    hostname = "WINDOWS_IP_PLACEHOLDER"       # Nahraďte IP adresou Windows zariadenia
-    port = 22
-    username = "USERNAME_PLACEHOLDER"           # Nahraďte používateľským menom
-    password = "PASSWORD_PLACEHOLDER"           # Nahraďte heslom
+# Funkcia pre uloženie logov do súboru (append, s aktuálnym dátumom a časom)
+def save_logs(log_widget):
+    logs_dir = '/home/dpv/j44softapps-socketcontrol'
+    logs_file = os.path.join(logs_dir, 'logs.txt')
     try:
-        client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(hostname, port=port, username=username, password=password)
-        stdin, stdout, stderr = client.exec_command(command)
-        output = stdout.read().decode().strip()
-        error = stderr.read().decode().strip()
-        if output:
-            log_widget.append(f"Výstup: {output}")
-        if error:
-            log_widget.append(f"Chyba: {error}")
-        else:
-            log_widget.append(f"Príkaz '{command}' bol úspešne odoslaný.")
-        client.close()
+        with open(logs_file, 'a') as f:
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            f.write(f"\n=== Log uložený: {timestamp} ===\n")
+            f.write(log_widget.toPlainText())
+            f.write("\n")
+        log_widget.append("Logy boli uložené.")
     except Exception as e:
-        log_widget.append(f"Chyba pri SSH pripojení: {e}")
+        log_widget.append(f"Chyba pri ukladaní logov: {e}")
 
-# GUI aplikácia
+# Hlavná GUI aplikácia
 class ControlApp(QWidget):
     def __init__(self, devices):
         super().__init__()
@@ -94,7 +87,12 @@ class ControlApp(QWidget):
     def init_ui(self):
         layout = QVBoxLayout()
 
-        # Wake-on-LAN časť
+        # Zobrazenie názvu programu
+        title_label = QLabel("JadivDevControl for C14, verzia 5-2-2025_01")
+        title_label.setStyleSheet("font-weight: bold; font-size: 16px;")
+        layout.addWidget(title_label)
+
+        # Sekcia Wake-on-LAN
         self.label = QLabel("Vyberte zariadenie na Wake-on-LAN:")
         layout.addWidget(self.label)
 
@@ -107,25 +105,22 @@ class ControlApp(QWidget):
         self.btn_wake.clicked.connect(self.wake_device)
         layout.addWidget(self.btn_wake)
 
-        # Zapnutie/Vypnutie zásuviek
+        # Lokálne ovládanie zásuviek (Energenie EGPMS2 - 6 slotov)
+        zasuvky_label = QLabel("Lokálne ovládanie zásuviek (Energenie EGPMS2 - 6 slotov):")
+        layout.addWidget(zasuvky_label)
         self.zasuvky_layout = QVBoxLayout()
-        nazvy_zasuviek = ["none(1)", "AZ2000(2)", "C14(3)", "UNKNOWN(4)"]
-
-        for i in range(4):
+        for i in range(6):
+            slot = i + 1
             zasuvka_layout = QHBoxLayout()
             stav_label = QLabel("OFF")
-
-            zapni_btn = QPushButton(f"Zapnúť {nazvy_zasuviek[i]}")
-            zapni_btn.clicked.connect(lambda checked, i=i, stav=stav_label: zapni_zasuvku(i+1, stav, self.log_widget))
-
-            vypni_btn = QPushButton(f"Vypnúť {nazvy_zasuviek[i]}")
-            vypni_btn.clicked.connect(lambda checked, i=i, stav=stav_label: vypni_zasuvku(i+1, stav, self.log_widget))
-
+            btn_on = QPushButton(f"Zapnúť zásuvku {slot}")
+            btn_on.clicked.connect(lambda checked, slot=slot, stav=stav_label: zapni_zasuvku(slot, stav, self.log_widget))
+            btn_off = QPushButton(f"Vypnúť zásuvku {slot}")
+            btn_off.clicked.connect(lambda checked, slot=slot, stav=stav_label: vypni_zasuvku(slot, stav, self.log_widget))
             zasuvka_layout.addWidget(stav_label)
-            zasuvka_layout.addWidget(zapni_btn)
-            zasuvka_layout.addWidget(vypni_btn)
+            zasuvka_layout.addWidget(btn_on)
+            zasuvka_layout.addWidget(btn_off)
             self.zasuvky_layout.addLayout(zasuvka_layout)
-
         layout.addLayout(self.zasuvky_layout)
 
         # OTA aktualizácia
@@ -133,34 +128,19 @@ class ControlApp(QWidget):
         self.btn_update.clicked.connect(self.update)
         layout.addWidget(self.btn_update)
 
-        # Ovládanie Windows verzie cez SSH
-        self.windows_control_label = QLabel("Ovládanie Windows zariadenia cez SSH:")
-        layout.addWidget(self.windows_control_label)
-
-        self.btn_windows_relay_on = QPushButton("Zapnúť Windows relé")
-        self.btn_windows_relay_on.clicked.connect(lambda: send_ssh_command("relay on", self.log_widget))
-        layout.addWidget(self.btn_windows_relay_on)
-
-        self.btn_windows_relay_off = QPushButton("Vypnúť Windows relé")
-        self.btn_windows_relay_off.clicked.connect(lambda: send_ssh_command("relay off", self.log_widget))
-        layout.addWidget(self.btn_windows_relay_off)
-
-        self.btn_windows_socket1_on = QPushButton("Zapnúť Windows zásuvku 1")
-        self.btn_windows_socket1_on.clicked.connect(lambda: send_ssh_command("socket 1 on", self.log_widget))
-        layout.addWidget(self.btn_windows_socket1_on)
-
-        self.btn_windows_socket1_off = QPushButton("Vypnúť Windows zásuvku 1")
-        self.btn_windows_socket1_off.clicked.connect(lambda: send_ssh_command("socket 1 off", self.log_widget))
-        layout.addWidget(self.btn_windows_socket1_off)
-
         # Log výstupy
         self.log_widget = QTextEdit()
         self.log_widget.setReadOnly(True)
         layout.addWidget(self.log_widget)
 
+        # Tlačidlo pre uloženie logov
+        btn_save_logs = QPushButton("Save logs")
+        btn_save_logs.clicked.connect(lambda: save_logs(self.log_widget))
+        layout.addWidget(btn_save_logs)
+
         self.setLayout(layout)
-        self.setWindowTitle('Ovládanie zariadení')
-        self.resize(500, 600)
+        self.setWindowTitle("JadivDevControl for C14, verzia 5-2-2025_01")
+        self.resize(600, 800)
 
     def wake_device(self):
         selected = self.list_widget.currentRow()
@@ -177,53 +157,8 @@ class ControlApp(QWidget):
         else:
             self.log_widget.append("Aktualizácia zlyhala.")
 
-# Funkcia na vyhľadanie USB zariadení (pre prípadné rozšírenie ovládania USB zariadení)
-class USBControlLinux(QWidget):
-    def __init__(self):
-        super().__init__()
-        self.initUI()
-        self.device = self.find_usb_device()
-
-    def initUI(self):
-        layout = QVBoxLayout()
-        self.label = QLabel("Vyberte zariadenie na ovládanie:")
-        layout.addWidget(self.label)
-        
-        self.relay_button = QPushButton("Ovládať USB relé", self)
-        self.relay_button.clicked.connect(self.control_relay)
-        layout.addWidget(self.relay_button)
-        
-        self.socket_slot_buttons = []
-        for i in range(1, 5):
-            button = QPushButton(f"Ovládať zásuvku slot {i}", self)
-            button.clicked.connect(lambda checked, slot=i: self.control_socket(slot))
-            layout.addWidget(button)
-            self.socket_slot_buttons.append(button)
-        
-        self.setLayout(layout)
-        self.setWindowTitle("USB Ovládanie Linux")
-        self.show()
-    
-    def find_usb_device(self):
-        devices = usb.core.find(find_all=True)
-        for device in devices:
-            print(f"Nájdené USB zariadenie: VID={hex(device.idVendor)} PID={hex(device.idProduct)}")
-            return device
-        return None
-
-    def control_relay(self):
-        if self.device:
-            self.label.setText("Ovládam USB relé...")
-            self.device.ctrl_transfer(0x40, 0x01, 0x0001, 0, None)
-        else:
-            self.label.setText("USB relé nebolo nájdené!")
-    
-    def control_socket(self, slot):
-        self.label.setText(f"Ovládam USB zásuvku, slot {slot}...")
-        # Príkaz pre Gembird EG-PMS2
-        os.system(f"syspmctl --switch {slot} --on")
-
 if __name__ == "__main__":
+    # Príklad zoznamu zariadení pre Wake-on-LAN – upravte podľa potreby
     devices = [
         {'name': 'hlavny', 'mac': 'e0:d5:5e:df:c6:4e', 'ip': '172.20.20.133'},
         {'name': 'VNT', 'mac': '78:24:af:9c:06:e7', 'ip': '172.20.20.123'},
@@ -235,4 +170,3 @@ if __name__ == "__main__":
     window = ControlApp(devices)
     window.show()
     sys.exit(app.exec_())
-
