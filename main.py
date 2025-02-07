@@ -9,22 +9,23 @@ from datetime import datetime
 from time import sleep
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QListWidget, QTextEdit, QHBoxLayout, QLineEdit, QTabWidget
 
-# Program: JadivDevControl for C14, verzia 7
+# Program: JadivDevControl for C14, verzia 7.1
 
 def check_for_updates(log_widget):
     update_url = 'https://github.com/jan-tdy/aplikacia8ejw8idue8wo/raw/main/main.py'
     target_path = '/home/dpv/j44softapps-socketcontrol/main.py'
-    while True:
-        try:
-            response = requests.get(update_url)
-            if response.status_code == 200:
-                with open(target_path, 'rb') as f:
-                    local_content = f.read()
-                if response.content != local_content:
-                    log_widget.append("Nová verzia aplikácie je dostupná na Githube!")
-            sleep(900)
-        except requests.RequestException as e:
-            log_widget.append(f"Chyba pri kontrole aktualizácie: {e}")
+    try:
+        response = requests.get(update_url)
+        if response.status_code == 200:
+            if os.path.exists(target_path):
+                os.remove(target_path)
+            with open(target_path, 'wb') as f:
+                f.write(response.content)
+            log_widget.append("Aktualizácia úspešne stiahnutá. Zatvorte a znovu otvorte program.")
+        else:
+            log_widget.append("Chyba pri sťahovaní aktualizácie.")
+    except requests.RequestException as e:
+        log_widget.append(f"Chyba pri sťahovaní aktualizácie: {e}")
 
 class ControlApp(QWidget):
     def __init__(self, devices):
@@ -35,7 +36,30 @@ class ControlApp(QWidget):
 
     def init_ui(self):
         layout = QVBoxLayout()
+
+        # Úvodná obrazovka
+        self.intro_label = QLabel("JadivDevControl for C14, verzia 7.1")
+        layout.addWidget(self.intro_label)
+
+        self.readme_text = QTextEdit()
+        self.readme_text.setReadOnly(True)
+        self.readme_text.setText("""
+        Stiahnuť main.py
+        Funkcia OTA update potrebuje internetové pripojenie.
+        Treba nainštalovať všetky závislosti cez pip.
+        """)
+        layout.addWidget(self.readme_text)
+
+        self.ota_button = QPushButton("OTA Update")
+        self.ota_button.clicked.connect(lambda: check_for_updates(self.log_widget))
+        layout.addWidget(self.ota_button)
+
+        self.log_widget = QTextEdit()
+        self.log_widget.setReadOnly(True)
+        layout.addWidget(self.log_widget)
+
         self.tabs = QTabWidget()
+        layout.addWidget(self.tabs)
 
         self.tab_wol = QWidget()
         self.init_wol_ui()
@@ -49,25 +73,12 @@ class ControlApp(QWidget):
         self.init_strecha_ui()
         self.tabs.addTab(self.tab_strecha, "Strecha")
 
-        self.tab_logy = QWidget()
-        self.init_log_ui()
-        self.tabs.addTab(self.tab_logy, "Logy")
-
-        layout.addWidget(self.tabs)
         self.setLayout(layout)
         self.setWindowTitle("JadivDevControl for C14, verzia 7")
         self.resize(800, 600)
 
     def start_update_checker(self):
-        self.log_widget = QTextEdit()
         threading.Thread(target=check_for_updates, args=(self.log_widget,), daemon=True).start()
-
-    def init_log_ui(self):
-        layout = QVBoxLayout()
-        self.log_widget = QTextEdit()
-        self.log_widget.setReadOnly(True)
-        layout.addWidget(self.log_widget)
-        self.tab_logy.setLayout(layout)
     
     def init_wol_ui(self):
         layout = QVBoxLayout()
