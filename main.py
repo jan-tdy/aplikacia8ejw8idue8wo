@@ -5,38 +5,48 @@ import subprocess
 import requests
 import webbrowser
 import threading
+import paramiko
 from datetime import datetime
 from time import sleep
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QListWidget, QTextEdit, QHBoxLayout, QLineEdit
 
-# Program: JadivDevControl for C14, verzia 7.2
+# Program: JadivDevControl for C14, verzia 7.4
 
-def check_for_updates(log_widget):
-    update_url = 'https://github.com/jan-tdy/aplikacia8ejw8idue8wo/raw/main/main.py'
-    try:
-        response = requests.get(update_url)
-        if response.status_code == 200:
-            log_widget.append("Nová verzia aplikácie je dostupná na Githube!")
-        else:
-            log_widget.append("Chyba pri kontrole aktualizácie.")
-    except requests.RequestException as e:
-        log_widget.append(f"Chyba pri kontrole aktualizácie: {e}")
+WINCONFIG_PATH = "/home/dpv/j44softapps-socketcontrol/winconfig.txt"
 
-def manual_update(log_widget):
-    update_url = 'https://github.com/jan-tdy/aplikacia8ejw8idue8wo/raw/main/main.py'
-    target_path = '/home/dpv/j44softapps-socketcontrol/main.py'
+def load_winconfig():
+    config = {}
+    if os.path.exists(WINCONFIG_PATH):
+        with open(WINCONFIG_PATH, 'r') as f:
+            for line in f:
+                parts = line.strip().split()
+                if len(parts) == 3 and parts[0] == "ip":
+                    config['ip'] = parts[1]
+                elif len(parts) == 3 and parts[0] == "psw":
+                    config['password'] = parts[1]
+                elif len(parts) == 3:
+                    config[parts[0]] = parts[1]
+    return config
+
+def send_ssh_command(command, log_widget):
+    config = load_winconfig()
+    if 'ip' not in config or 'password' not in config:
+        log_widget.append("Chyba: IP adresa alebo heslo nie sú definované v konfiguračnom súbore.")
+        return
     try:
-        response = requests.get(update_url)
-        if response.status_code == 200:
-            if os.path.exists(target_path):
-                os.remove(target_path)
-            with open(target_path, 'wb') as f:
-                f.write(response.content)
-            log_widget.append("Aktualizácia úspešne stiahnutá. Zatvorte a znovu otvorte program.")
-        else:
-            log_widget.append("Chyba pri sťahovaní aktualizácie.")
-    except requests.RequestException as e:
-        log_widget.append(f"Chyba pri sťahovaní aktualizácie: {e}")
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect(config['ip'], username='admin', password=config['password'])
+        stdin, stdout, stderr = ssh.exec_command(command)
+        output = stdout.read().decode()
+        error = stderr.read().decode()
+        if output:
+            log_widget.append(f"Výstup: {output}")
+        if error:
+            log_widget.append(f"Chyba: {error}")
+        ssh.close()
+    except Exception as e:
+        log_widget.append(f"Chyba pri odosielaní SSH príkazu: {e}")
 
 class ControlApp(QWidget):
     def __init__(self, devices):
@@ -47,7 +57,7 @@ class ControlApp(QWidget):
 
     def init_ui(self):
         layout = QVBoxLayout()
-        self.intro_label = QLabel("JadivDevControl for C14, verzia 7.2")
+        self.intro_label = QLabel("JadivDevControl for C14, verzia 7.4")
         layout.addWidget(self.intro_label)
 
         self.log_widget = QTextEdit()
@@ -61,10 +71,21 @@ class ControlApp(QWidget):
         self.init_wol_ui(layout)
         self.init_zasuvky_ui(layout)
         self.init_strecha_ui(layout)
+        self.init_astrofoto_ui(layout)
 
         self.setLayout(layout)
-        self.setWindowTitle("JadivDevControl for C14, verzia 7.2")
+        self.setWindowTitle("JadivDevControl for C14, verzia 7.4")
         self.resize(800, 600)
+
+    def init_astrofoto_ui(self, layout):
+        layout.addWidget(QLabel("Astrofoto - Ovládanie Windows počítača"))
+        config = load_winconfig()
+
+        for key, command in config.items():
+            if key not in ["ip", "password"]:
+                button = QPushButton(key.replace("_", " "))
+                button.clicked.connect(lambda checked, cmd=command: send_ssh_command(cmd, self.log_widget))
+                layout.addWidget(button)
 
     def start_update_checker(self):
         threading.Thread(target=self.check_for_updates_periodically, daemon=True).start()
@@ -73,7 +94,7 @@ class ControlApp(QWidget):
         while True:
             check_for_updates(self.log_widget)
             sleep(3600)
-
+    
     def init_wol_ui(self, layout):
         self.list_widget = QListWidget()
         for device in self.devices:
@@ -96,34 +117,6 @@ class ControlApp(QWidget):
             subprocess.run(["wakeonlan", mac_address], shell=True)
         else:
             print("Nezadaná MAC adresa!")
-    
-    def init_zasuvky_ui(self, layout):
-        slot_names = {1: "none(1)", 2: "AZ2000(2)", 3: "C14(3)", 4: "UNKNOWN(4)"}
-        for slot in range(1, 5):
-            zasuvka_layout = QHBoxLayout()
-            stav_label = QLabel("OFF")
-            btn_on = QPushButton(f"Zapnúť {slot_names[slot]}")
-            btn_off = QPushButton(f"Vypnúť {slot_names[slot]}")
-            btn_on.clicked.connect(lambda checked, slot=slot: self.zapni_zasuvku(slot))
-            btn_off.clicked.connect(lambda checked, slot=slot: self.vypni_zasuvku(slot))
-            zasuvka_layout.addWidget(stav_label)
-            zasuvka_layout.addWidget(btn_on)
-            zasuvka_layout.addWidget(btn_off)
-            layout.addLayout(zasuvka_layout)
-
-    def zapni_zasuvku(self, slot):
-        subprocess.run(["syspmctl", "-o", str(slot)], shell=True)
-
-    def vypni_zasuvku(self, slot):
-        subprocess.run(["syspmctl", "-f", str(slot)], shell=True)
-
-    def init_strecha_ui(self, layout):
-        btn_strecha_on = QPushButton("Pohnut strechou")
-        btn_strecha_on.clicked.connect(self.run_strecha_on)
-        layout.addWidget(btn_strecha_on)
-
-    def run_strecha_on(self):
-        subprocess.run(["bash", "-c", "cd /home/dpv/Downloads/usb-relay-hid-master/commandline/makemake && ./strecha_on.sh"], shell=True)
     
 if __name__ == "__main__":
     app = QApplication(sys.argv)
