@@ -9,7 +9,7 @@ from datetime import datetime
 from time import sleep
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QListWidget, QTextEdit, QHBoxLayout, QLineEdit, QTabWidget
 
-# Program: JadivDevControl for C14, verzia 6
+# Program: JadivDevControl for C14, verzia 7
 
 def check_for_updates(log_widget):
     update_url = 'https://github.com/jan-tdy/aplikacia8ejw8idue8wo/raw/main/main.py'
@@ -44,14 +44,10 @@ class ControlApp(QWidget):
         self.tab_zasuvky = QWidget()
         self.init_zasuvky_ui()
         self.tabs.addTab(self.tab_zasuvky, "Zásuvky")
-
+        
         self.tab_strecha = QWidget()
         self.init_strecha_ui()
         self.tabs.addTab(self.tab_strecha, "Strecha")
-
-        self.tab_kamera = QWidget()
-        self.init_kamera_ui()
-        self.tabs.addTab(self.tab_kamera, "Kamera")
 
         self.tab_logy = QWidget()
         self.init_log_ui()
@@ -59,7 +55,7 @@ class ControlApp(QWidget):
 
         layout.addWidget(self.tabs)
         self.setLayout(layout)
-        self.setWindowTitle("JadivDevControl for C14, verzia 6")
+        self.setWindowTitle("JadivDevControl for C14, verzia 7")
         self.resize(800, 600)
 
     def start_update_checker(self):
@@ -97,6 +93,38 @@ class ControlApp(QWidget):
             subprocess.run(["wakeonlan", mac_address], shell=True)
         else:
             print("Nezadaná MAC adresa!")
+    
+    def init_zasuvky_ui(self):
+        layout = QVBoxLayout()
+        slot_names = {1: "none(1)", 2: "AZ2000(2)", 3: "C14(3)", 4: "UNKNOWN(4)"}
+        for slot in range(1, 5):
+            zasuvka_layout = QHBoxLayout()
+            stav_label = QLabel("OFF")
+            btn_on = QPushButton(f"Zapnúť {slot_names[slot]}")
+            btn_off = QPushButton(f"Vypnúť {slot_names[slot]}")
+            btn_on.clicked.connect(lambda checked, slot=slot: self.zapni_zasuvku(slot))
+            btn_off.clicked.connect(lambda checked, slot=slot: self.vypni_zasuvku(slot))
+            zasuvka_layout.addWidget(stav_label)
+            zasuvka_layout.addWidget(btn_on)
+            zasuvka_layout.addWidget(btn_off)
+            layout.addLayout(zasuvka_layout)
+        self.tab_zasuvky.setLayout(layout)
+
+    def zapni_zasuvku(self, slot):
+        subprocess.run(["syspmctl", "-o", str(slot)], shell=True)
+
+    def vypni_zasuvku(self, slot):
+        subprocess.run(["syspmctl", "-f", str(slot)], shell=True)
+
+    def init_strecha_ui(self):
+        layout = QVBoxLayout()
+        btn_strecha_on = QPushButton("Pohnut strechou")
+        btn_strecha_on.clicked.connect(self.run_strecha_on)
+        layout.addWidget(btn_strecha_on)
+        self.tab_strecha.setLayout(layout)
+
+    def run_strecha_on(self):
+        subprocess.run(["bash", "-c", "cd /home/dpv/Downloads/usb-relay-hid-master/commandline/makemake && ./strecha_on.sh"], shell=True)
     
 if __name__ == "__main__":
     app = QApplication(sys.argv)
