@@ -7,11 +7,22 @@ import webbrowser
 import threading
 from datetime import datetime
 from time import sleep
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QListWidget, QTextEdit, QHBoxLayout, QLineEdit, QTabWidget
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QListWidget, QTextEdit, QHBoxLayout, QLineEdit
 
-# Program: JadivDevControl for C14, verzia 7.1
+# Program: JadivDevControl for C14, verzia 7.2
 
 def check_for_updates(log_widget):
+    update_url = 'https://github.com/jan-tdy/aplikacia8ejw8idue8wo/raw/main/main.py'
+    try:
+        response = requests.get(update_url)
+        if response.status_code == 200:
+            log_widget.append("Nová verzia aplikácie je dostupná na Githube!")
+        else:
+            log_widget.append("Chyba pri kontrole aktualizácie.")
+    except requests.RequestException as e:
+        log_widget.append(f"Chyba pri kontrole aktualizácie: {e}")
+
+def manual_update(log_widget):
     update_url = 'https://github.com/jan-tdy/aplikacia8ejw8idue8wo/raw/main/main.py'
     target_path = '/home/dpv/j44softapps-socketcontrol/main.py'
     try:
@@ -36,52 +47,34 @@ class ControlApp(QWidget):
 
     def init_ui(self):
         layout = QVBoxLayout()
-
-        # Úvodná obrazovka
-        self.intro_label = QLabel("JadivDevControl for C14, verzia 7.1")
+        self.intro_label = QLabel("JadivDevControl for C14, verzia 7.2")
         layout.addWidget(self.intro_label)
-
-        self.readme_text = QTextEdit()
-        self.readme_text.setReadOnly(True)
-        self.readme_text.setText("""
-        Stiahnuť main.py
-        Funkcia OTA update potrebuje internetové pripojenie.
-        Treba nainštalovať všetky závislosti cez pip.
-        """)
-        layout.addWidget(self.readme_text)
-
-        self.ota_button = QPushButton("OTA Update")
-        self.ota_button.clicked.connect(lambda: check_for_updates(self.log_widget))
-        layout.addWidget(self.ota_button)
 
         self.log_widget = QTextEdit()
         self.log_widget.setReadOnly(True)
         layout.addWidget(self.log_widget)
 
-        self.tabs = QTabWidget()
-        layout.addWidget(self.tabs)
+        self.ota_button = QPushButton("OTA Update")
+        self.ota_button.clicked.connect(lambda: manual_update(self.log_widget))
+        layout.addWidget(self.ota_button)
 
-        self.tab_wol = QWidget()
-        self.init_wol_ui()
-        self.tabs.addTab(self.tab_wol, "Wake-on-LAN")
-
-        self.tab_zasuvky = QWidget()
-        self.init_zasuvky_ui()
-        self.tabs.addTab(self.tab_zasuvky, "Zásuvky")
-        
-        self.tab_strecha = QWidget()
-        self.init_strecha_ui()
-        self.tabs.addTab(self.tab_strecha, "Strecha")
+        self.init_wol_ui(layout)
+        self.init_zasuvky_ui(layout)
+        self.init_strecha_ui(layout)
 
         self.setLayout(layout)
-        self.setWindowTitle("JadivDevControl for C14, verzia 7")
+        self.setWindowTitle("JadivDevControl for C14, verzia 7.2")
         self.resize(800, 600)
 
     def start_update_checker(self):
-        threading.Thread(target=check_for_updates, args=(self.log_widget,), daemon=True).start()
-    
-    def init_wol_ui(self):
-        layout = QVBoxLayout()
+        threading.Thread(target=self.check_for_updates_periodically, daemon=True).start()
+
+    def check_for_updates_periodically(self):
+        while True:
+            check_for_updates(self.log_widget)
+            sleep(3600)
+
+    def init_wol_ui(self, layout):
         self.list_widget = QListWidget()
         for device in self.devices:
             self.list_widget.addItem(f"{device['name']} - {device['mac']} - {device['ip']}")
@@ -92,7 +85,6 @@ class ControlApp(QWidget):
         self.btn_wake = QPushButton("Wake")
         self.btn_wake.clicked.connect(self.wake_device)
         layout.addWidget(self.btn_wake)
-        self.tab_wol.setLayout(layout)
     
     def wake_device(self):
         selected = self.list_widget.currentRow()
@@ -105,8 +97,7 @@ class ControlApp(QWidget):
         else:
             print("Nezadaná MAC adresa!")
     
-    def init_zasuvky_ui(self):
-        layout = QVBoxLayout()
+    def init_zasuvky_ui(self, layout):
         slot_names = {1: "none(1)", 2: "AZ2000(2)", 3: "C14(3)", 4: "UNKNOWN(4)"}
         for slot in range(1, 5):
             zasuvka_layout = QHBoxLayout()
@@ -119,7 +110,6 @@ class ControlApp(QWidget):
             zasuvka_layout.addWidget(btn_on)
             zasuvka_layout.addWidget(btn_off)
             layout.addLayout(zasuvka_layout)
-        self.tab_zasuvky.setLayout(layout)
 
     def zapni_zasuvku(self, slot):
         subprocess.run(["syspmctl", "-o", str(slot)], shell=True)
@@ -127,12 +117,10 @@ class ControlApp(QWidget):
     def vypni_zasuvku(self, slot):
         subprocess.run(["syspmctl", "-f", str(slot)], shell=True)
 
-    def init_strecha_ui(self):
-        layout = QVBoxLayout()
+    def init_strecha_ui(self, layout):
         btn_strecha_on = QPushButton("Pohnut strechou")
         btn_strecha_on.clicked.connect(self.run_strecha_on)
         layout.addWidget(btn_strecha_on)
-        self.tab_strecha.setLayout(layout)
 
     def run_strecha_on(self):
         subprocess.run(["bash", "-c", "cd /home/dpv/Downloads/usb-relay-hid-master/commandline/makemake && ./strecha_on.sh"], shell=True)
