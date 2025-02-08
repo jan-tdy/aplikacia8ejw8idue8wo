@@ -123,7 +123,7 @@ class ControlApp(QWidget):
         layout.addWidget(btn_strecha_on)
 
     def run_strecha_on(self):
-        subprocess.run(["bash", "-c", "cd /home/dpv/Downloads/usb-relay-hid-master/commandline/makemake && ./strecha_on.sh"], shell=True)
+        subprocess.run(["cd /home/dpv/Downloads/usb-relay-hid-master/commandline/makemake && ./strecha_on.sh"], shell=True)
     
 if __name__ == "__main__":
     app = QApplication(sys.argv)
