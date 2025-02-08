@@ -5,48 +5,27 @@ import subprocess
 import requests
 import webbrowser
 import threading
-import paramiko
 from datetime import datetime
 from time import sleep
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QListWidget, QTextEdit, QHBoxLayout, QLineEdit
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QListWidget, QTextEdit, QHBoxLayout, QLineEdit, QTabWidget
 
-# Program: JadivDevControl for C14, verzia 7.3
+# Program: JadivDevControl for C14, verzia 7.1
 
-WINCONFIG_PATH = "/home/dpv/j44softapps-socketcontrol/winconfig.txt"
-
-def load_winconfig():
-    config = {}
-    if os.path.exists(WINCONFIG_PATH):
-        with open(WINCONFIG_PATH, 'r') as f:
-            for line in f:
-                parts = line.strip().split()
-                if len(parts) == 3 and parts[0] == "ip":
-                    config['ip'] = parts[1]
-                elif len(parts) == 3 and parts[0] == "psw":
-                    config['password'] = parts[1]
-                elif len(parts) == 3:
-                    config[parts[0]] = parts[1]
-    return config
-
-def send_ssh_command(command, log_widget):
-    config = load_winconfig()
-    if 'ip' not in config or 'password' not in config:
-        log_widget.append("Chyba: IP adresa alebo heslo nie sú definované v konfiguračnom súbore.")
-        return
+def check_for_updates(log_widget):
+    update_url = 'https://github.com/jan-tdy/aplikacia8ejw8idue8wo/raw/main/main.py'
+    target_path = '/home/dpv/j44softapps-socketcontrol/main.py'
     try:
-        ssh = paramiko.SSHClient()
-        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        ssh.connect(config['ip'], username='admin', password=config['password'])
-        stdin, stdout, stderr = ssh.exec_command(command)
-        output = stdout.read().decode()
-        error = stderr.read().decode()
-        if output:
-            log_widget.append(f"Výstup: {output}")
-        if error:
-            log_widget.append(f"Chyba: {error}")
-        ssh.close()
-    except Exception as e:
-        log_widget.append(f"Chyba pri odosielaní SSH príkazu: {e}")
+        response = requests.get(update_url)
+        if response.status_code == 200:
+            if os.path.exists(target_path):
+                os.remove(target_path)
+            with open(target_path, 'wb') as f:
+                f.write(response.content)
+            log_widget.append("Aktualizácia úspešne stiahnutá. Zatvorte a znovu otvorte program.")
+        else:
+            log_widget.append("Chyba pri sťahovaní aktualizácie.")
+    except requests.RequestException as e:
+        log_widget.append(f"Chyba pri sťahovaní aktualizácie: {e}")
 
 class ControlApp(QWidget):
     def __init__(self, devices):
@@ -57,28 +36,77 @@ class ControlApp(QWidget):
 
     def init_ui(self):
         layout = QVBoxLayout()
-        self.intro_label = QLabel("JadivDevControl for C14, verzia 7.3")
+
+        # Úvodná obrazovka
+        self.intro_label = QLabel("JadivDevControl for C14, verzia 7.1")
         layout.addWidget(self.intro_label)
+
+        self.readme_text = QTextEdit()
+        self.readme_text.setReadOnly(True)
+        self.readme_text.setText("""
+        Stiahnuť main.py
+        Funkcia OTA update potrebuje internetové pripojenie.
+        Treba nainštalovať všetky závislosti cez pip.
+        """)
+        layout.addWidget(self.readme_text)
+
+        self.ota_button = QPushButton("OTA Update")
+        self.ota_button.clicked.connect(lambda: check_for_updates(self.log_widget))
+        layout.addWidget(self.ota_button)
 
         self.log_widget = QTextEdit()
         self.log_widget.setReadOnly(True)
         layout.addWidget(self.log_widget)
 
-        self.ota_button = QPushButton("OTA Update")
-        self.ota_button.clicked.connect(lambda: manual_update(self.log_widget))
-        layout.addWidget(self.ota_button)
+        self.tabs = QTabWidget()
+        layout.addWidget(self.tabs)
 
-        self.init_wol_ui(layout)
-        self.init_zasuvky_ui(layout)
-        self.init_strecha_ui(layout)
-        self.init_astrofoto_ui(layout)
+        self.tab_wol = QWidget()
+        self.init_wol_ui()
+        self.tabs.addTab(self.tab_wol, "Wake-on-LAN")
+
+        self.tab_zasuvky = QWidget()
+        self.init_zasuvky_ui()
+        self.tabs.addTab(self.tab_zasuvky, "Zásuvky")
+        
+        self.tab_strecha = QWidget()
+        self.init_strecha_ui()
+        self.tabs.addTab(self.tab_strecha, "Strecha")
 
         self.setLayout(layout)
-        self.setWindowTitle("JadivDevControl for C14, verzia 7.3")
+        self.setWindowTitle("JadivDevControl for C14, verzia 7")
         self.resize(800, 600)
 
-    def init_zasuvky_ui(self, layout):
-        layout.addWidget(QLabel("Ovládanie zásuviek"))
+    def start_update_checker(self):
+        threading.Thread(target=check_for_updates, args=(self.log_widget,), daemon=True).start()
+    
+    def init_wol_ui(self):
+        layout = QVBoxLayout()
+        self.list_widget = QListWidget()
+        for device in self.devices:
+            self.list_widget.addItem(f"{device['name']} - {device['mac']} - {device['ip']}")
+        layout.addWidget(self.list_widget)
+        self.mac_input = QLineEdit()
+        self.mac_input.setPlaceholderText("Zadajte MAC adresu pre WOL")
+        layout.addWidget(self.mac_input)
+        self.btn_wake = QPushButton("Wake")
+        self.btn_wake.clicked.connect(self.wake_device)
+        layout.addWidget(self.btn_wake)
+        self.tab_wol.setLayout(layout)
+    
+    def wake_device(self):
+        selected = self.list_widget.currentRow()
+        mac_address = self.mac_input.text().strip()
+        if selected >= 0:
+            device = self.devices[selected]
+            mac_address = device['mac']
+        if mac_address:
+            subprocess.run(["wakeonlan", mac_address], shell=True)
+        else:
+            print("Nezadaná MAC adresa!")
+    
+    def init_zasuvky_ui(self):
+        layout = QVBoxLayout()
         slot_names = {1: "none(1)", 2: "AZ2000(2)", 3: "C14(3)", 4: "UNKNOWN(4)"}
         for slot in range(1, 5):
             zasuvka_layout = QHBoxLayout()
@@ -91,6 +119,7 @@ class ControlApp(QWidget):
             zasuvka_layout.addWidget(btn_on)
             zasuvka_layout.addWidget(btn_off)
             layout.addLayout(zasuvka_layout)
+        self.tab_zasuvky.setLayout(layout)
 
     def zapni_zasuvku(self, slot):
         subprocess.run(["syspmctl", "-o", str(slot)], shell=True)
@@ -98,46 +127,16 @@ class ControlApp(QWidget):
     def vypni_zasuvku(self, slot):
         subprocess.run(["syspmctl", "-f", str(slot)], shell=True)
 
-    def init_astrofoto_ui(self, layout):
-        layout.addWidget(QLabel("Astrofoto - Ovládanie Windows počítača"))
-        config = load_winconfig()
-        for label, command in config.items():
-            if label not in ["ip", "password"]:  # Preskočíme IP a heslo
-                button = QPushButton(label)
-                button.clicked.connect(lambda checked, cmd=command: send_ssh_command(cmd, self.log_widget))
-                layout.addWidget(button)
+    def init_strecha_ui(self):
+        layout = QVBoxLayout()
+        btn_strecha_on = QPushButton("Pohnut strechou")
+        btn_strecha_on.clicked.connect(self.run_strecha_on)
+        layout.addWidget(btn_strecha_on)
+        self.tab_strecha.setLayout(layout)
 
-    def start_update_checker(self):
-        threading.Thread(target=self.check_for_updates_periodically, daemon=True).start()
-
-    def check_for_updates_periodically(self):
-        while True:
-            check_for_updates(self.log_widget)
-            sleep(3600)
+    def run_strecha_on(self):
+        subprocess.run(["bash", "-c", "cd /home/dpv/Downloads/usb-relay-hid-master/commandline/makemake && ./strecha_on.sh"], shell=True)
     
-    def init_wol_ui(self, layout):
-        self.list_widget = QListWidget()
-        for device in self.devices:
-            self.list_widget.addItem(f"{device['name']} - {device['mac']} - {device['ip']}")
-        layout.addWidget(self.list_widget)
-        self.mac_input = QLineEdit()
-        self.mac_input.setPlaceholderText("Zadajte MAC adresu pre WOL")
-        layout.addWidget(self.mac_input)
-        self.btn_wake = QPushButton("Wake")
-        self.btn_wake.clicked.connect(self.wake_device)
-        layout.addWidget(self.btn_wake)
-    
-    def wake_device(self):
-        selected = self.list_widget.currentRow()
-        mac_address = self.mac_input.text().strip()
-        if selected >= 0:
-            device = self.devices[selected]
-            mac_address = device['mac']
-        if mac_address:
-            subprocess.run(["wakeonlan", mac_address], shell=True)
-        else:
-            print("Nezadaná MAC adresa!")
-
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     devices = [
