@@ -10,7 +10,7 @@ from datetime import datetime
 from time import sleep
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QListWidget, QTextEdit, QHBoxLayout, QLineEdit
 
-# Program: JadivDevControl for C14, verzia 7.4
+# Program: JadivDevControl for C14, verzia 7.3
 
 WINCONFIG_PATH = "/home/dpv/j44softapps-socketcontrol/winconfig.txt"
 
@@ -57,7 +57,7 @@ class ControlApp(QWidget):
 
     def init_ui(self):
         layout = QVBoxLayout()
-        self.intro_label = QLabel("JadivDevControl for C14, verzia 7.4")
+        self.intro_label = QLabel("JadivDevControl for C14, verzia 7.3")
         layout.addWidget(self.intro_label)
 
         self.log_widget = QTextEdit()
@@ -74,16 +74,36 @@ class ControlApp(QWidget):
         self.init_astrofoto_ui(layout)
 
         self.setLayout(layout)
-        self.setWindowTitle("JadivDevControl for C14, verzia 7.4")
+        self.setWindowTitle("JadivDevControl for C14, verzia 7.3")
         self.resize(800, 600)
+
+    def init_zasuvky_ui(self, layout):
+        layout.addWidget(QLabel("Ovládanie zásuviek"))
+        slot_names = {1: "none(1)", 2: "AZ2000(2)", 3: "C14(3)", 4: "UNKNOWN(4)"}
+        for slot in range(1, 5):
+            zasuvka_layout = QHBoxLayout()
+            stav_label = QLabel("OFF")
+            btn_on = QPushButton(f"Zapnúť {slot_names[slot]}")
+            btn_off = QPushButton(f"Vypnúť {slot_names[slot]}")
+            btn_on.clicked.connect(lambda checked, slot=slot: self.zapni_zasuvku(slot))
+            btn_off.clicked.connect(lambda checked, slot=slot: self.vypni_zasuvku(slot))
+            zasuvka_layout.addWidget(stav_label)
+            zasuvka_layout.addWidget(btn_on)
+            zasuvka_layout.addWidget(btn_off)
+            layout.addLayout(zasuvka_layout)
+
+    def zapni_zasuvku(self, slot):
+        subprocess.run(["syspmctl", "-o", str(slot)], shell=True)
+
+    def vypni_zasuvku(self, slot):
+        subprocess.run(["syspmctl", "-f", str(slot)], shell=True)
 
     def init_astrofoto_ui(self, layout):
         layout.addWidget(QLabel("Astrofoto - Ovládanie Windows počítača"))
         config = load_winconfig()
-
-        for key, command in config.items():
-            if key not in ["ip", "password"]:
-                button = QPushButton(key.replace("_", " "))
+        for label, command in config.items():
+            if label not in ["ip", "password"]:  # Preskočíme IP a heslo
+                button = QPushButton(label)
                 button.clicked.connect(lambda checked, cmd=command: send_ssh_command(cmd, self.log_widget))
                 layout.addWidget(button)
 
@@ -117,7 +137,7 @@ class ControlApp(QWidget):
             subprocess.run(["wakeonlan", mac_address], shell=True)
         else:
             print("Nezadaná MAC adresa!")
-    
+
 if __name__ == "__main__":
     app = QApplication(sys.argv)
     devices = [
