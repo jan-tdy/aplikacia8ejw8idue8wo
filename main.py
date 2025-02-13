@@ -100,21 +100,23 @@ class ControlApp(QWidget):
             zasuvka_layout.addWidget(btn_off)
             layout.addLayout(zasuvka_layout)
 
-    def zapni_zasuvku(self, slot):
-        try:
-            subprocess.run(["syspmctl", "-o", str(slot)], shell=True, check=True)
-            self.slot_labels[slot].setText("ON")
-            log_message(self.log_widget, f"Zásuvka {slot} zapnutá.")
-        except subprocess.CalledProcessError as e:
-            log_message(self.log_widget, f"Chyba pri zapínaní zásuvky {slot}: {e}")
+  def zapni_zasuvku(self, slot):
+    try:
+        command = f"syspmctl -o {slot}"
+        subprocess.run(command, shell=True, check=True)
+        self.slot_labels[slot].setText("ON")
+        log_message(self.log_widget, f"Zásuvka {slot} zapnutá. Príkaz: {command}")
+    except subprocess.CalledProcessError as e:
+        log_message(self.log_widget, f"Chyba pri zapínaní zásuvky {slot}: {e}")
 
-    def vypni_zasuvku(self, slot):
-        try:
-            subprocess.run(["syspmctl", "-f", str(slot)], shell=True, check=True)
-            self.slot_labels[slot].setText("OFF")
-            log_message(self.log_widget, f"Zásuvka {slot} vypnutá.")
-        except subprocess.CalledProcessError as e:
-            log_message(self.log_widget, f"Chyba pri vypínaní zásuvky {slot}: {e}")
+def vypni_zasuvku(self, slot):
+    try:
+        command = f"syspmctl -f {slot}"
+        subprocess.run(command, shell=True, check=True)
+        self.slot_labels[slot].setText("OFF")
+        log_message(self.log_widget, f"Zásuvka {slot} vypnutá. Príkaz: {command}")
+    except subprocess.CalledProcessError as e:
+        log_message(self.log_widget, f"Chyba pri vypínaní zásuvky {slot}: {e}")
 
     def init_strecha_ui(self, layout):
         btn_strecha_on = QPushButton("Pohnut strechou")
