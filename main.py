@@ -8,9 +8,37 @@ import threading
 from datetime import datetime
 from time import sleep
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QListWidget, QTextEdit, QHBoxLayout, QLineEdit
+from flask import Flask, request, jsonify
 
-# Program: JadivDevControl for C14, verzia 7.2
+# Flask app setup
+app = Flask(__name__)
 
+@app.route('/control', methods=['POST'])
+def control():
+    data = request.json
+    if 'command' in data:
+        command = data['command']
+        if command == 'wake_device':
+            mac_address = data.get('mac_address', '')
+            if mac_address:
+                subprocess.run(["wakeonlan", mac_address], shell=True)
+                return jsonify({"status": "success", "message": "Device woken up"}), 200
+            else:
+                return jsonify({"status": "error", "message": "MAC address missing"}), 400
+        elif command == 'zapni_zasuvku':
+            slot = data.get('slot', 0)
+            subprocess.run(["syspmctl", "-o", str(slot)], shell=True)
+            return jsonify({"status": "success", "message": f"Slot {slot} turned on"}), 200
+        elif command == 'vypni_zasuvku':
+            slot = data.get('slot', 0)
+            subprocess.run(["syspmctl", "-f", str(slot)], shell=True)
+            return jsonify({"status": "success", "message": f"Slot {slot} turned off"}), 200
+    return jsonify({"status": "error", "message": "Invalid command"}), 400
+
+def run_flask():
+    app.run(host='0.0.0.0', port=5000)
+
+# Existing code starts here
 def check_for_updates(log_widget):
     update_url = 'https://github.com/jan-tdy/aplikacia8ejw8idue8wo/raw/main/main.py'
     try:
@@ -126,6 +154,10 @@ class ControlApp(QWidget):
         subprocess.run(["cd /home/dpv/Downloads/usb-relay-hid-master/commandline/makemake && ./strecha_on.sh"], shell=True)
     
 if __name__ == "__main__":
+    flask_thread = threading.Thread(target=run_flask)
+    flask_thread.daemon = True
+    flask_thread.start()
+
     app = QApplication(sys.argv)
     devices = [
         {'name': 'hlavny', 'mac': 'e0:d5:5e:df:c6:4e', 'ip': '172.20.20.133'},
@@ -136,4 +168,4 @@ if __name__ == "__main__":
     ]
     window = ControlApp(devices)
     window.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec_()) 
