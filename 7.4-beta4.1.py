@@ -1,15 +1,14 @@
 import sys
 import os
 import subprocess
-import requests
 import json
 from datetime import datetime
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QListWidget, QTextEdit, QHBoxLayout, QLineEdit, QTabWidget, QStackedWidget, QComboBox
+from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QListWidget, QTextEdit, QTabWidget, QHBoxLayout, QColorDialog)
 from PyQt5.QtGui import QPalette, QColor
+from PyQt5.QtCore import Qt
 
 # Nastavenia
 SETTINGS_FILE = "settings.json"
-MAC_FILE = "mac.json"
 
 # Načítanie a uloženie nastavení
 def load_settings():
@@ -79,35 +78,38 @@ class ControlApp(QWidget):
         self.resize(800, 600)
         self.show()
     
-    def init_wol_ui(self):
-        layout = QVBoxLayout()
-        layout.addWidget(QLabel("Wake-on-LAN (WOL) - Vyberte zariadenie na prebudenie"))
-        self.page_wol.setLayout(layout)
-    
     def init_zasuvky_ui(self):
         layout = QVBoxLayout()
-        layout.addWidget(QLabel("Ovládanie zásuviek"))
+        self.status_labels = []
+        self.buttons_on = []
+        self.buttons_off = []
+        for i in range(1, 5):
+            hbox = QHBoxLayout()
+            label = QLabel(f"Slot {i}: Vypnutý")
+            label.setStyleSheet("background-color: red")
+            self.status_labels.append(label)
+
+            btn_on = QPushButton(f"Zapnúť slot {i}")
+            btn_off = QPushButton(f"Vypnúť slot {i}")
+            btn_on.clicked.connect(lambda ch, idx=i: self.toggle_socket(idx, True))
+            btn_off.clicked.connect(lambda ch, idx=i: self.toggle_socket(idx, False))
+
+            self.buttons_on.append(btn_on)
+            self.buttons_off.append(btn_off)
+
+            hbox.addWidget(label)
+            hbox.addWidget(btn_on)
+            hbox.addWidget(btn_off)
+            layout.addLayout(hbox)
+
         self.page_zasuvky.setLayout(layout)
-    
-    def init_strecha_ui(self):
-        layout = QVBoxLayout()
-        layout.addWidget(QLabel("Ovládanie strechy"))
-        self.page_strecha.setLayout(layout)
-    
-    def init_log_ui(self):
-        layout = QVBoxLayout()
-        layout.addWidget(QLabel("Systémový log"))
-        self.page_log.setLayout(layout)
-    
-    def init_settings_ui(self):
-        layout = QVBoxLayout()
-        layout.addWidget(QLabel("Nastavenia systému"))
-        self.page_settings.setLayout(layout)
-    
-    def init_ota_ui(self):
-        layout = QVBoxLayout()
-        layout.addWidget(QLabel("OTA Update - Aktualizácia systému"))
-        self.page_ota.setLayout(layout)
+
+    def toggle_socket(self, slot, on):
+        cmd = ["sispmctl", "-o" if on else "-f", str(slot)]
+        subprocess.run(cmd, shell=False)
+        self.status_labels[slot-1].setText(f"Slot {slot}: {'Zapnutý' if on else 'Vypnutý'}")
+        self.status_labels[slot-1].setStyleSheet(f"background-color: {'green' if on else 'red'}")
+        log_message(self.page_log, f"{'Zapnutý' if on else 'Vypnutý'} slot {slot}")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
@@ -119,7 +121,7 @@ if __name__ == "__main__":
         {'name': 'GM3000 mount', 'mac': '00:c0:08:aa:35:12', 'ip': '172.20.20.12'},
         {'name': 'GM3000 RPi pi1', 'mac': 'd8:3a:dd:89:4d:d0', 'ip': '172.20.20.112'}
     ]
-    app.setStyle("Fusion")  # Zabezpečenie, že GUI sa otvorí správne
+    app.setStyle("Fusion")
     window = ControlApp(devices)
     window.show()
     sys.exit(app.exec_())
