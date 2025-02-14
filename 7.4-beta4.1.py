@@ -4,8 +4,8 @@ import subprocess
 import requests
 import json
 from datetime import datetime
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QListWidget, QTextEdit, QHBoxLayout, QLineEdit, QTabWidget, QStackedWidget, QComboBox
-from PyQt5.QtGui import QPalette, QColor
+from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QListWidget, QTextEdit, QHBoxLayout, QLineEdit, QTabWidget, QStackedWidget, QComboBox
+from PyQt6.QtGui import QPalette, QColor
 
 # Nastavenia
 SETTINGS_FILE = "settings.json"
@@ -37,11 +37,11 @@ class ControlApp(QWidget):
     def apply_theme(self, theme):
         palette = self.palette()
         if theme == "dark":
-            palette.setColor(QPalette.Window, QColor(30, 30, 30))
-            palette.setColor(QPalette.WindowText, QColor(255, 255, 255))
+            palette.setColor(QPalette.ColorRole.Window, QColor(30, 30, 30))
+            palette.setColor(QPalette.ColorRole.WindowText, QColor(255, 255, 255))
         else:
-            palette.setColor(QPalette.Window, QColor(240, 240, 240))
-            palette.setColor(QPalette.WindowText, QColor(0, 0, 0))
+            palette.setColor(QPalette.ColorRole.Window, QColor(240, 240, 240))
+            palette.setColor(QPalette.ColorRole.WindowText, QColor(0, 0, 0))
         self.setPalette(palette)
 
     def init_ui(self):
@@ -79,10 +79,35 @@ class ControlApp(QWidget):
         self.resize(800, 600)
         self.show()
     
+    def init_wol_ui(self):
+        layout = QVBoxLayout()
+        layout.addWidget(QLabel("Wake-on-LAN (WOL) - Vyberte zariadenie na prebudenie"))
+        self.page_wol.setLayout(layout)
+    
+    def init_zasuvky_ui(self):
+        layout = QVBoxLayout()
+        layout.addWidget(QLabel("Ovládanie zásuviek"))
+        self.page_zasuvky.setLayout(layout)
+    
+    def init_strecha_ui(self):
+        layout = QVBoxLayout()
+        layout.addWidget(QLabel("Ovládanie strechy"))
+        self.page_strecha.setLayout(layout)
+    
+    def init_log_ui(self):
+        layout = QVBoxLayout()
+        layout.addWidget(QLabel("Systémový log"))
+        self.page_log.setLayout(layout)
+    
     def init_settings_ui(self):
         layout = QVBoxLayout()
         layout.addWidget(QLabel("Nastavenia systému"))
         self.page_settings.setLayout(layout)
+    
+    def init_ota_ui(self):
+        layout = QVBoxLayout()
+        layout.addWidget(QLabel("OTA Update - Aktualizácia systému"))
+        self.page_ota.setLayout(layout)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
@@ -97,4 +122,4 @@ if __name__ == "__main__":
     app.setStyle("Fusion")  # Zabezpečenie, že GUI sa otvorí správne
     window = ControlApp(devices)
     window.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
