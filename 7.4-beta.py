@@ -144,6 +144,17 @@ class ControlApp(QWidget):
         layout.addWidget(self.btn_wake)
         self.page_wol.setLayout(layout)
 
+    def wake_device(self):
+        selected = self.list_widget.currentRow()
+        mac_address = self.mac_input.text().strip()
+        if selected >= 0:
+            device = self.devices[selected]
+            mac_address = device['mac']
+        if mac_address:
+            subprocess.run(["wakeonlan", mac_address], shell=True)
+        else:
+            print("Nezadaná MAC adresa!")
+
     def init_zasuvky_ui(self):
         layout = QVBoxLayout()
         self.btn_on = QPushButton("Zapnúť zásuvku")
