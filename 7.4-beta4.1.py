@@ -34,6 +34,16 @@ class ControlApp(QWidget):
         self.settings = load_settings()
         self.init_ui()
         
+    def apply_theme(self, theme):
+        palette = self.palette()
+        if theme == "dark":
+            palette.setColor(QPalette.Window, QColor(30, 30, 30))
+            palette.setColor(QPalette.WindowText, QColor(255, 255, 255))
+        else:
+            palette.setColor(QPalette.Window, QColor(240, 240, 240))
+            palette.setColor(QPalette.WindowText, QColor(0, 0, 0))
+        self.setPalette(palette)
+
     def init_ui(self):
         layout = QVBoxLayout()
         self.apply_theme(self.settings["theme"])
@@ -79,6 +89,7 @@ if __name__ == "__main__":
         {'name': 'GM3000 mount', 'mac': '00:c0:08:aa:35:12', 'ip': '172.20.20.12'},
         {'name': 'GM3000 RPi pi1', 'mac': 'd8:3a:dd:89:4d:d0', 'ip': '172.20.20.112'}
     ]
+    app.setStyle("Fusion")  # Zabezpečenie, že GUI sa otvorí správne
     window = ControlApp(devices)
     window.show()
     sys.exit(app.exec_())
