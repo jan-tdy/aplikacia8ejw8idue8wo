@@ -16,7 +16,7 @@ def load_settings():
     if os.path.exists(SETTINGS_FILE):
         with open(SETTINGS_FILE, "r") as f:
             return json.load(f)
-    return {"theme": "dark", "view_mode": "tabs"}
+    return {"theme": "light", "view_mode": "tabs"}  # Predvolená téma je teraz svetlá
 
 def save_settings(settings):
     with open(SETTINGS_FILE, "w") as f:
