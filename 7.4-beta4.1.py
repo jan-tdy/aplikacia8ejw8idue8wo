@@ -78,6 +78,30 @@ class ControlApp(QWidget):
         self.setWindowTitle("JadivDevControl for C14, verzia 7.4")
         self.resize(800, 600)
         self.show()
+    
+    def init_wol_ui(self):
+        layout = QVBoxLayout()
+        self.page_wol.setLayout(layout)
+    
+    def init_zasuvky_ui(self):
+        layout = QVBoxLayout()
+        self.page_zasuvky.setLayout(layout)
+    
+    def init_strecha_ui(self):
+        layout = QVBoxLayout()
+        self.page_strecha.setLayout(layout)
+    
+    def init_log_ui(self):
+        layout = QVBoxLayout()
+        self.page_log.setLayout(layout)
+    
+    def init_settings_ui(self):
+        layout = QVBoxLayout()
+        self.page_settings.setLayout(layout)
+    
+    def init_ota_ui(self):
+        layout = QVBoxLayout()
+        self.page_ota.setLayout(layout)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
