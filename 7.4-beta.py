@@ -9,6 +9,7 @@ from PyQt5.QtGui import QPalette, QColor
 
 # Súbor pre uloženie nastavení
 SETTINGS_FILE = "settings.json"
+MAC_FILE = "mac.json"
 
 def load_settings():
     """Načíta nastavenia zo súboru settings.json."""
@@ -21,6 +22,11 @@ def save_settings(settings):
     """Uloží nastavenia do súboru settings.json."""
     with open(SETTINGS_FILE, "w") as f:
         json.dump(settings, f, indent=4)
+
+def save_mac_addresses(devices):
+    """Uloží MAC adresy do súboru mac.json."""
+    with open(MAC_FILE, "w") as f:
+        json.dump(devices, f, indent=4)
 
 # Načítanie nastavení pri spustení
 settings = load_settings()
@@ -37,6 +43,7 @@ class ControlApp(QWidget):
         self.devices = devices
         self.settings = load_settings()
         self.init_ui()
+        save_mac_addresses(devices)
 
     def init_ui(self):
         layout = QVBoxLayout()
@@ -83,18 +90,21 @@ class ControlApp(QWidget):
             self.btn_strecha = QPushButton("Strecha")
             self.btn_log = QPushButton("Log")
             self.btn_settings = QPushButton("Nastavenia")
+            self.btn_move_and_download = QPushButton("Move and Download Files")
 
             self.btn_wol.clicked.connect(lambda: self.stack.setCurrentIndex(0))
             self.btn_zasuvky.clicked.connect(lambda: self.stack.setCurrentIndex(1))
             self.btn_strecha.clicked.connect(lambda: self.stack.setCurrentIndex(2))
             self.btn_log.clicked.connect(lambda: self.stack.setCurrentIndex(3))
             self.btn_settings.clicked.connect(lambda: self.stack.setCurrentIndex(4))
+            self.btn_move_and_download.clicked.connect(self.move_and_download_files)
 
             menu_layout.addWidget(self.btn_wol)
             menu_layout.addWidget(self.btn_zasuvky)
             menu_layout.addWidget(self.btn_strecha)
             menu_layout.addWidget(self.btn_log)
             menu_layout.addWidget(self.btn_settings)
+            menu_layout.addWidget(self.btn_move_and_download)
 
             layout.addLayout(menu_layout)
             layout.addWidget(self.stack)
@@ -138,8 +148,8 @@ class ControlApp(QWidget):
         layout = QVBoxLayout()
         self.btn_on = QPushButton("Zapnúť zásuvku")
         self.btn_off = QPushButton("Vypnúť zásuvku")
-        self.btn_on.clicked.connect(lambda: subprocess.run(["syspmctl", "-o", "1"], shell=True))
-        self.btn_off.clicked.connect(lambda: subprocess.run(["syspmctl", "-f", "1"], shell=True))
+        self.btn_on.clicked.connect(lambda: subprocess.run(["sispmctl", "-o", "1"], shell=True))
+        self.btn_off.clicked.connect(lambda: subprocess.run(["sispmctl", "-f", "1"], shell=True))
         layout.addWidget(self.btn_on)
         layout.addWidget(self.btn_off)
         self.page_zasuvky.setLayout(layout)
@@ -157,6 +167,16 @@ class ControlApp(QWidget):
         self.log_widget.setReadOnly(True)
         layout.addWidget(self.log_widget)
         self.page_log.setLayout(layout)
+
+    def move_and_download_files(self):
+        # Move files from /home/dpv/j44softapps-socketcontrol/ to /home/dpv/j44softapps-socketcontrol/old1
+        os.makedirs("/home/dpv/j44softapps-socketcontrol/old1", exist_ok=True)
+        for filename in os.listdir("/home/dpv/j44softapps-socketcontrol/"):
+            if filename != "old1":
+                os.rename(f"/home/dpv/j44softapps-socketcontrol/{filename}", f"/home/dpv/j44softapps-socketcontrol/old1/{filename}")
+
+        # Clone the repository to /home/dpv/j44softapps-socketcontrol/
+        subprocess.run("git clone https://github.com/jan-tdy/aplikacia8ejw8idue8wo /home/dpv/j44softapps-socketcontrol/", shell=True)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
