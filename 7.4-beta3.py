@@ -1,10 +1,9 @@
 import sys
 import os
 import subprocess
-import requests
 import json
 from datetime import datetime
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QListWidget, QTextEdit, QHBoxLayout, QLineEdit, QTabWidget, QStackedWidget, QComboBox
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QListWidget, QTextEdit, QHBoxLayout, QLineEdit, QTabWidget, QStackedWidget
 from PyQt5.QtGui import QPalette, QColor
 
 # Súbor pre uloženie nastavení
@@ -144,33 +143,32 @@ class ControlApp(QWidget):
         layout.addWidget(self.btn_wake)
         self.page_wol.setLayout(layout)
 
-    def wake_device(self):
-        selected = self.list_widget.currentRow()
-        mac_address = self.mac_input.text().strip()
-        if selected >= 0:
-            device = self.devices[selected]
-            mac_address = device['mac']
-        if mac_address:
-            subprocess.run(["wakeonlan", mac_address], shell=True)
-        else:
-            print("Nezadaná MAC adresa!")
-
     def init_zasuvky_ui(self):
         layout = QVBoxLayout()
         self.btn_on = QPushButton("Zapnúť zásuvku")
         self.btn_off = QPushButton("Vypnúť zásuvku")
-        self.btn_on.clicked.connect(lambda: subprocess.run(["sispmctl", "-o", "1"], shell=True))
-        self.btn_off.clicked.connect(lambda: subprocess.run(["sispmctl", "-f", "1"], shell=True))
+        self.btn_on.clicked.connect(lambda: self.toggle_zasuvka(True))
+        self.btn_off.clicked.connect(lambda: self.toggle_zasuvka(False))
         layout.addWidget(self.btn_on)
         layout.addWidget(self.btn_off)
         self.page_zasuvky.setLayout(layout)
 
+    def toggle_zasuvka(self, turn_on):
+        """Zapne alebo vypne zásuvku."""
+        slot = 1  # Môžete upravit číslo slotu podľa potreby
+        action = "-o" if turn_on else "-f"
+        subprocess.run(["sispmctl", action, str(slot)], shell=True)
+
     def init_strecha_ui(self):
         layout = QVBoxLayout()
         self.btn_strecha_on = QPushButton("Pohnut strechou")
-        self.btn_strecha_on.clicked.connect(lambda: subprocess.run("cd /home/dpv/Downloads/usb-relay-hid-master/commandline/makemake && ./strecha_on.sh", shell=True))
+        self.btn_strecha_on.clicked.connect(self.control_strecha)
         layout.addWidget(self.btn_strecha_on)
         self.page_strecha.setLayout(layout)
+
+    def control_strecha(self):
+        """Spustí príkaz na ovládanie strechy."""
+        subprocess.run("cd /home/dpv/Downloads/usb-relay-hid-master/commandline/makemake && ./strecha_on.sh", shell=True)
 
     def init_log_ui(self):
         layout = QVBoxLayout()
@@ -180,21 +178,25 @@ class ControlApp(QWidget):
         self.page_log.setLayout(layout)
 
     def move_and_download_files(self):
-        # Move files from /home/dpv/j44softapps-socketcontrol/ to /home/dpv/j44softapps-socketcontrol/old1
+        """Presúva súbory do zložky 'old1' a klonuje repozitár."""
         os.makedirs("/home/dpv/j44softapps-socketcontrol/old1", exist_ok=True)
         for filename in os.listdir("/home/dpv/j44softapps-socketcontrol/"):
             if filename != "old1":
                 os.rename(f"/home/dpv/j44softapps-socketcontrol/{filename}", f"/home/dpv/j44softapps-socketcontrol/old1/{filename}")
 
-        # Clone the repository to /home/dpv/j44softapps-socketcontrol/
         subprocess.run("git clone https://github.com/jan-tdy/aplikacia8ejw8idue8wo /home/dpv/j44softapps-socketcontrol/", shell=True)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    devices = [
-        {'name': 'hlavny', 'mac': 'e0:d5:5e:df:c6:4e', 'ip': '172.20.20.133'},
-        {'name': 'VNT', 'mac': '78:24:af:9c:06:e7', 'ip': '172.20.20.123'}
-    ]
+   devices = [
+    {'name': 'VNT', 'mac': '78:24:af:9c:06:e7', 'ip': '172.20.20.123'},
+    {'name': 'C14', 'mac': 'e0:d5:5e:37:4f:ad', 'ip': '172.20.20.103'},
+    {'name': 'AZ2000 mount', 'mac': '00:c0:08:a9:c2:32', 'ip': '172.20.20.10'},
+    {'name': 'AZ2000 RPi allsky', 'mac': 'd8:3a:dd:9a:05:d4', 'ip': '172.20.20.116'},
+    {'name': 'GM3000 mount', 'mac': '00:c0:08:aa:35:12', 'ip': '172.20.20.12'},
+    {'name': 'GM3000 RPi pi1', 'mac': 'd8:3a:dd:89:4d:d0', 'ip': '172.20.20.112'}
+]
+
     window = ControlApp(devices)
     window.show()
     sys.exit(app.exec_())
