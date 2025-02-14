@@ -4,8 +4,8 @@ import subprocess
 import requests
 import json
 from datetime import datetime
-from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QListWidget, QTextEdit, QHBoxLayout, QLineEdit, QTabWidget, QStackedWidget, QComboBox
-from PyQt6.QtGui import QPalette, QColor
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QListWidget, QTextEdit, QHBoxLayout, QLineEdit, QTabWidget, QStackedWidget, QComboBox
+from PyQt5.QtGui import QPalette, QColor
 
 # Nastavenia
 SETTINGS_FILE = "settings.json"
@@ -37,11 +37,11 @@ class ControlApp(QWidget):
     def apply_theme(self, theme):
         palette = self.palette()
         if theme == "dark":
-            palette.setColor(QPalette.ColorRole.Window, QColor(30, 30, 30))
-            palette.setColor(QPalette.ColorRole.WindowText, QColor(255, 255, 255))
+            palette.setColor(QPalette.Window, QColor(30, 30, 30))
+            palette.setColor(QPalette.WindowText, QColor(255, 255, 255))
         else:
-            palette.setColor(QPalette.ColorRole.Window, QColor(240, 240, 240))
-            palette.setColor(QPalette.ColorRole.WindowText, QColor(0, 0, 0))
+            palette.setColor(QPalette.Window, QColor(240, 240, 240))
+            palette.setColor(QPalette.WindowText, QColor(0, 0, 0))
         self.setPalette(palette)
 
     def init_ui(self):
@@ -122,4 +122,4 @@ if __name__ == "__main__":
     app.setStyle("Fusion")  # Zabezpečenie, že GUI sa otvorí správne
     window = ControlApp(devices)
     window.show()
-    sys.exit(app.exec())
+    sys.exit(app.exec_())
