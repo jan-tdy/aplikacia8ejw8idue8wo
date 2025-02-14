@@ -68,6 +68,10 @@ class ControlApp(QWidget):
         self.setWindowTitle("JadivDevControl for C14, verzia 7.4")
         self.resize(800, 600)
 
+    def init_settings_ui(self):
+        layout = QVBoxLayout()
+        self.page_settings.setLayout(layout)
+
     def apply_theme(self, theme):
         palette = self.palette()
         if theme == "dark":
@@ -129,17 +133,3 @@ class ControlApp(QWidget):
     def ota_update(self):
         subprocess.run("git pull", shell=True)
         log_message(self.log_widget, "Systém bol aktualizovaný cez OTA Update.")
-
-if __name__ == "__main__":
-    devices = [
-        {'name': 'VNT', 'mac': '78:24:af:9c:06:e7', 'ip': '172.20.20.123'},
-        {'name': 'C14', 'mac': 'e0:d5:5e:37:4f:ad', 'ip': '172.20.20.103'},
-        {'name': 'AZ2000 mount', 'mac': '00:c0:08:a9:c2:32', 'ip': '172.20.20.10'},
-        {'name': 'AZ2000 RPi allsky', 'mac': 'd8:3a:dd:9a:05:d4', 'ip': '172.20.20.116'},
-        {'name': 'GM3000 mount', 'mac': '00:c0:08:aa:35:12', 'ip': '172.20.20.12'},
-        {'name': 'GM3000 RPi pi1', 'mac': 'd8:3a:dd:89:4d:d0', 'ip': '172.20.20.112'}
-    ]
-    app = QApplication(sys.argv)
-    window = ControlApp(devices)
-    window.show()
-    sys.exit(app.exec_())
