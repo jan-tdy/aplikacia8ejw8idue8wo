@@ -102,6 +102,20 @@ class ControlApp(QWidget):
         self.resize(800, 600)
         self.show()
     
+    def init_zasuvky_ui(self):
+        layout = QVBoxLayout()
+        slot_names = {1: "none(1)", 2: "AZ2000(2)", 3: "C14(3)", 4: "UNKNOWN(4)"}
+        for slot in range(1, 5):
+            slot_layout = QHBoxLayout()
+            btn_on = QPushButton(f"Zapnúť {slot_names[slot]}")
+            btn_off = QPushButton(f"Vypnúť {slot_names[slot]}")
+            btn_on.clicked.connect(lambda checked, s=slot: subprocess.run(["sispmctl", "-o", str(s)], shell=True))
+            btn_off.clicked.connect(lambda checked, s=slot: subprocess.run(["sispmctl", "-f", str(s)], shell=True))
+            slot_layout.addWidget(btn_on)
+            slot_layout.addWidget(btn_off)
+            layout.addLayout(slot_layout)
+        self.page_zasuvky.setLayout(layout)
+    
     def init_wol_ui(self):
         layout = QVBoxLayout()
         layout.addWidget(QLabel("Wake-on-LAN (WOL)"))
