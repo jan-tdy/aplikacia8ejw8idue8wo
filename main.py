@@ -8,7 +8,7 @@ from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLa
 # Program: JadivDevControl for C14, verzia 7.3
 
 def log_message(log_widget, message):
-    """Zapisuje správy do log widgetu a konzoly."""
+    """Zapisuje sprÃ¡vy do log widgetu a konzoly."""
     timestamp = datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")
     log_widget.append(f"{timestamp} {message}")
     print(f"{timestamp} {message}")
@@ -37,7 +37,7 @@ class ControlApp(QWidget):
         self.resize(800, 600)
 
     def init_wol_ui(self, layout):
-        """Inicializácia sekcie Wake-on-LAN."""
+        """InicializÃ¡cia sekcie Wake-on-LAN."""
         self.list_widget = QListWidget()
         for device in self.devices:
             self.list_widget.addItem(f"{device['name']} - {device['mac']} - {device['ip']}")
@@ -52,7 +52,7 @@ class ControlApp(QWidget):
         layout.addWidget(self.btn_wake)
 
     def wake_device(self):
-        """Odoslanie WOL signálu."""
+        """Odoslanie WOL signÃ¡lu."""
         selected = self.list_widget.currentRow()
         mac_address = self.mac_input.text().strip()
         if selected >= 0:
@@ -61,14 +61,14 @@ class ControlApp(QWidget):
         if mac_address:
             try:
                 subprocess.run(f"wakeonlan {mac_address}", shell=True, check=True)
-                log_message(self.log_widget, f"Odoslaný WOL pre {mac_address}")
+                log_message(self.log_widget, f"OdoslanÃ½ WOL pre {mac_address}")
             except subprocess.CalledProcessError as e:
                 log_message(self.log_widget, f"Chyba pri WOL: {e}")
         else:
-            log_message(self.log_widget, "Nezadaná MAC adresa!")
+            log_message(self.log_widget, "NezadanÃ¡ MAC adresa!")
 
     def init_zasuvky_ui(self, layout):
-        """Inicializácia sekcie zásuviek."""
+        """InicializÃ¡cia sekcie zÃ¡suviek."""
         slot_names = {1: "none(1)", 2: "AZ2000(2)", 3: "C14(3)", 4: "UNKNOWN(4)"}
         self.slot_labels = {}
 
@@ -77,8 +77,8 @@ class ControlApp(QWidget):
             stav_label = QLabel("OFF")
             self.slot_labels[slot] = stav_label
 
-            btn_on = QPushButton(f"Zapnúť {slot_names[slot]}")
-            btn_off = QPushButton(f"Vypnúť {slot_names[slot]}")
+            btn_on = QPushButton(f"ZapnÃºÅ¥ {slot_names[slot]}")
+            btn_off = QPushButton(f"VypnÃºÅ¥ {slot_names[slot]}")
 
             btn_on.clicked.connect(lambda checked, s=slot: self.zapni_zasuvku(s))
             btn_off.clicked.connect(lambda checked, s=slot: self.vypni_zasuvku(s))
@@ -89,37 +89,37 @@ class ControlApp(QWidget):
             layout.addLayout(zasuvka_layout)
 
     def zapni_zasuvku(self, slot):
-        """Zapnutie zásuvky cez syspmctl."""
+        """Zapnutie zÃ¡suvky cez syspmctl."""
         try:
-            command = f"syspmctl -o {slot}"
+            command = f"sispmctl -o {slot}"
             subprocess.run(command, shell=True, check=True)
             self.slot_labels[slot].setText("ON")
-            log_message(self.log_widget, f"Zásuvka {slot} zapnutá. Príkaz: {command}")
+            log_message(self.log_widget, f"ZÃ¡suvka {slot} zapnutÃ¡. PrÃ­kaz: {command}")
         except subprocess.CalledProcessError as e:
-            log_message(self.log_widget, f"Chyba pri zapínaní zásuvky {slot}: {e}")
+            log_message(self.log_widget, f"Chyba pri zapÃ­nanÃ­ zÃ¡suvky {slot}: {e}")
 
     def vypni_zasuvku(self, slot):
-        """Vypnutie zásuvky cez syspmctl."""
+        """Vypnutie zÃ¡suvky cez syspmctl."""
         try:
-            command = f"syspmctl -f {slot}"
+            command = f"sispmctl -f {slot}"
             subprocess.run(command, shell=True, check=True)
             self.slot_labels[slot].setText("OFF")
-            log_message(self.log_widget, f"Zásuvka {slot} vypnutá. Príkaz: {command}")
+            log_message(self.log_widget, f"ZÃ¡suvka {slot} vypnutÃ¡. PrÃ­kaz: {command}")
         except subprocess.CalledProcessError as e:
-            log_message(self.log_widget, f"Chyba pri vypínaní zásuvky {slot}: {e}")
+            log_message(self.log_widget, f"Chyba pri vypÃ­nanÃ­ zÃ¡suvky {slot}: {e}")
 
     def init_strecha_ui(self, layout):
-        """Inicializácia sekcie strechy."""
+        """InicializÃ¡cia sekcie strechy."""
         btn_strecha_on = QPushButton("Pohnut strechou")
         btn_strecha_on.clicked.connect(self.run_strecha_on)
         layout.addWidget(btn_strecha_on)
 
     def run_strecha_on(self):
-        """Ovládanie strechy cez shell skript."""
+        """OvlÃ¡danie strechy cez shell skript."""
         try:
             command = "cd /home/dpv/Downloads/usb-relay-hid-master/commandline/makemake && ./strecha_on.sh"
             subprocess.run(command, shell=True, check=True)
-            log_message(self.log_widget, "Strecha pohybovaná.")
+            log_message(self.log_widget, "Strecha pohybovanÃ¡.")
         except subprocess.CalledProcessError as e:
             log_message(self.log_widget, f"Chyba pri pohybe strechy: {e}")
 
