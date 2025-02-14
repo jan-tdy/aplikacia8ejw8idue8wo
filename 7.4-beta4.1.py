@@ -1,21 +1,22 @@
 import sys
 import os
 import subprocess
+import requests
 import json
 from datetime import datetime
-from PyQt5.QtWidgets import (QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QListWidget, QTextEdit, QTabWidget, QHBoxLayout, QColorDialog)
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel, QListWidget, QTextEdit, QHBoxLayout, QLineEdit, QStackedWidget, QComboBox
 from PyQt5.QtGui import QPalette, QColor
-from PyQt5.QtCore import Qt
 
 # Nastavenia
 SETTINGS_FILE = "settings.json"
+MAC_FILE = "mac.json"
 
 # Načítanie a uloženie nastavení
 def load_settings():
     if os.path.exists(SETTINGS_FILE):
         with open(SETTINGS_FILE, "r") as f:
             return json.load(f)
-    return {"theme": "light", "view_mode": "tabs"}  # Predvolená téma je teraz svetlá
+    return {"theme": "light", "view_mode": "sections"}  # Predvolená téma je teraz svetlá, prepnuté na sekcie
 
 def save_settings(settings):
     with open(SETTINGS_FILE, "w") as f:
@@ -50,7 +51,7 @@ class ControlApp(QWidget):
         self.intro_label = QLabel("JadivDevControl for C14, verzia 7.4")
         layout.addWidget(self.intro_label)
         
-        self.tabs = QTabWidget()
+        self.stack = QStackedWidget()
         self.page_wol = QWidget()
         self.page_zasuvky = QWidget()
         self.page_strecha = QWidget()
@@ -58,14 +59,37 @@ class ControlApp(QWidget):
         self.page_settings = QWidget()
         self.page_ota = QWidget()
         
-        self.tabs.addTab(self.page_wol, "WOL")
-        self.tabs.addTab(self.page_zasuvky, "Zásuvky")
-        self.tabs.addTab(self.page_strecha, "Strecha")
-        self.tabs.addTab(self.page_log, "Log")
-        self.tabs.addTab(self.page_settings, "Nastavenia")
-        self.tabs.addTab(self.page_ota, "OTA Update")
+        self.stack.addWidget(self.page_wol)
+        self.stack.addWidget(self.page_zasuvky)
+        self.stack.addWidget(self.page_strecha)
+        self.stack.addWidget(self.page_log)
+        self.stack.addWidget(self.page_settings)
+        self.stack.addWidget(self.page_ota)
         
-        layout.addWidget(self.tabs)
+        menu_layout = QHBoxLayout()
+        self.btn_wol = QPushButton("WOL")
+        self.btn_zasuvky = QPushButton("Zásuvky")
+        self.btn_strecha = QPushButton("Strecha")
+        self.btn_log = QPushButton("Log")
+        self.btn_settings = QPushButton("Nastavenia")
+        self.btn_ota = QPushButton("OTA Update")
+
+        self.btn_wol.clicked.connect(lambda: self.stack.setCurrentWidget(self.page_wol))
+        self.btn_zasuvky.clicked.connect(lambda: self.stack.setCurrentWidget(self.page_zasuvky))
+        self.btn_strecha.clicked.connect(lambda: self.stack.setCurrentWidget(self.page_strecha))
+        self.btn_log.clicked.connect(lambda: self.stack.setCurrentWidget(self.page_log))
+        self.btn_settings.clicked.connect(lambda: self.stack.setCurrentWidget(self.page_settings))
+        self.btn_ota.clicked.connect(lambda: self.stack.setCurrentWidget(self.page_ota))
+
+        menu_layout.addWidget(self.btn_wol)
+        menu_layout.addWidget(self.btn_zasuvky)
+        menu_layout.addWidget(self.btn_strecha)
+        menu_layout.addWidget(self.btn_log)
+        menu_layout.addWidget(self.btn_settings)
+        menu_layout.addWidget(self.btn_ota)
+
+        layout.addLayout(menu_layout)
+        layout.addWidget(self.stack)
         self.init_wol_ui()
         self.init_zasuvky_ui()
         self.init_strecha_ui()
@@ -80,36 +104,17 @@ class ControlApp(QWidget):
     
     def init_zasuvky_ui(self):
         layout = QVBoxLayout()
-        self.status_labels = []
-        self.buttons_on = []
-        self.buttons_off = []
-        for i in range(1, 5):
-            hbox = QHBoxLayout()
-            label = QLabel(f"Slot {i}: Vypnutý")
-            label.setStyleSheet("background-color: red")
-            self.status_labels.append(label)
-
-            btn_on = QPushButton(f"Zapnúť slot {i}")
-            btn_off = QPushButton(f"Vypnúť slot {i}")
-            btn_on.clicked.connect(lambda ch, idx=i: self.toggle_socket(idx, True))
-            btn_off.clicked.connect(lambda ch, idx=i: self.toggle_socket(idx, False))
-
-            self.buttons_on.append(btn_on)
-            self.buttons_off.append(btn_off)
-
-            hbox.addWidget(label)
-            hbox.addWidget(btn_on)
-            hbox.addWidget(btn_off)
-            layout.addLayout(hbox)
-
+        slot_names = {1: "none(1)", 2: "AZ2000(2)", 3: "C14(3)", 4: "UNKNOWN(4)"}
+        for slot in range(1, 5):
+            slot_layout = QHBoxLayout()
+            btn_on = QPushButton(f"Zapnúť {slot_names[slot]}")
+            btn_off = QPushButton(f"Vypnúť {slot_names[slot]}")
+            btn_on.clicked.connect(lambda checked, s=slot: subprocess.run(["sispmctl", "-o", str(s)], shell=True))
+            btn_off.clicked.connect(lambda checked, s=slot: subprocess.run(["sispmctl", "-f", str(s)], shell=True))
+            slot_layout.addWidget(btn_on)
+            slot_layout.addWidget(btn_off)
+            layout.addLayout(slot_layout)
         self.page_zasuvky.setLayout(layout)
-
-    def toggle_socket(self, slot, on):
-        cmd = ["sispmctl", "-o" if on else "-f", str(slot)]
-        subprocess.run(cmd, shell=False)
-        self.status_labels[slot-1].setText(f"Slot {slot}: {'Zapnutý' if on else 'Vypnutý'}")
-        self.status_labels[slot-1].setStyleSheet(f"background-color: {'green' if on else 'red'}")
-        log_message(self.page_log, f"{'Zapnutý' if on else 'Vypnutý'} slot {slot}")
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
