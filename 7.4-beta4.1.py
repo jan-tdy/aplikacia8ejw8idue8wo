@@ -81,26 +81,32 @@ class ControlApp(QWidget):
     
     def init_wol_ui(self):
         layout = QVBoxLayout()
+        layout.addWidget(QLabel("Wake-on-LAN (WOL) - Vyberte zariadenie na prebudenie"))
         self.page_wol.setLayout(layout)
     
     def init_zasuvky_ui(self):
         layout = QVBoxLayout()
+        layout.addWidget(QLabel("Ovládanie zásuviek"))
         self.page_zasuvky.setLayout(layout)
     
     def init_strecha_ui(self):
         layout = QVBoxLayout()
+        layout.addWidget(QLabel("Ovládanie strechy"))
         self.page_strecha.setLayout(layout)
     
     def init_log_ui(self):
         layout = QVBoxLayout()
+        layout.addWidget(QLabel("Systémový log"))
         self.page_log.setLayout(layout)
     
     def init_settings_ui(self):
         layout = QVBoxLayout()
+        layout.addWidget(QLabel("Nastavenia systému"))
         self.page_settings.setLayout(layout)
     
     def init_ota_ui(self):
         layout = QVBoxLayout()
+        layout.addWidget(QLabel("OTA Update - Aktualizácia systému"))
         self.page_ota.setLayout(layout)
 
 if __name__ == "__main__":
