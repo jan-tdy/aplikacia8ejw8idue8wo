@@ -79,54 +79,10 @@ class ControlApp(QWidget):
         self.resize(800, 600)
         self.show()
     
-    def init_wol_ui(self):
+    def init_settings_ui(self):
         layout = QVBoxLayout()
-        self.device_list = QListWidget()
-        for device in self.devices:
-            self.device_list.addItem(f"{device['name']} - {device['mac']} - {device['ip']}")
-        layout.addWidget(self.device_list)
-        self.btn_wake = QPushButton("Wake Device")
-        self.btn_wake.clicked.connect(self.wake_device)
-        layout.addWidget(self.btn_wake)
-        self.page_wol.setLayout(layout)
-    
-    def wake_device(self):
-        selected = self.device_list.currentRow()
-        if selected >= 0:
-            device = self.devices[selected]
-            subprocess.run(["wakeonlan", device['mac']], shell=True)
-            log_message(self.page_log, f"Prebudené zariadenie: {device['name']}")
-    
-    def init_zasuvky_ui(self):
-        layout = QVBoxLayout()
-        self.btn_on = QPushButton("Zapnúť zásuvku")
-        self.btn_off = QPushButton("Vypnúť zásuvku")
-        self.btn_on.clicked.connect(lambda: subprocess.run(["sispmctl", "-o", "1"], shell=True))
-        self.btn_off.clicked.connect(lambda: subprocess.run(["sispmctl", "-f", "1"], shell=True))
-        layout.addWidget(self.btn_on)
-        layout.addWidget(self.btn_off)
-        self.page_zasuvky.setLayout(layout)
-    
-    def init_strecha_ui(self):
-        layout = QVBoxLayout()
-        self.btn_strecha_on = QPushButton("Ovládanie strechy")
-        self.btn_strecha_on.clicked.connect(lambda: subprocess.run("cd /home/dpv/Downloads/usb-relay-hid-master/commandline/makemake && ./strecha_on.sh", shell=True))
-        layout.addWidget(self.btn_strecha_on)
-        self.page_strecha.setLayout(layout)
-    
-    def init_log_ui(self):
-        layout = QVBoxLayout()
-        self.log_widget = QTextEdit()
-        self.log_widget.setReadOnly(True)
-        layout.addWidget(self.log_widget)
-        self.page_log.setLayout(layout)
-    
-    def init_ota_ui(self):
-        layout = QVBoxLayout()
-        self.btn_update = QPushButton("OTA Update")
-        self.btn_update.clicked.connect(lambda: subprocess.run("git pull", shell=True))
-        layout.addWidget(self.btn_update)
-        self.page_ota.setLayout(layout)
+        layout.addWidget(QLabel("Nastavenia systému"))
+        self.page_settings.setLayout(layout)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
