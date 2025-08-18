@@ -1,3 +1,6 @@
+# update
+no longer supported - switch to devcontrol
+
 # aplikacia8ejw8idue8wo
 Stiahnuť main.py
 Funcia ota update potrebuje internetové pripojenie
